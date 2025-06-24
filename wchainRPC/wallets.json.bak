@@ -1,0 +1,24 @@
+{
+  "wallets": [
+    {
+      "address": "0xa10ca73a5dceafaaf54923aaf300ded8e0ce516b",
+      "privateKey": "0xc52cc54a42171674cbb45efa9fb8d98a9b54015c3ea503f5ed8ef7f54817046f",
+      "balance": "204fce5e3e25026110000000"
+    },
+    {
+      "address": "0x91379f8cf6dcf90ce08fe02d8de7cffd8f92d68e",
+      "privateKey": "0x8218a22ca9646f5fdc1cef4dc09c0c2fb015fd0092db35a08dcd9d90a4b9b81f",
+      "balance": "0x0"
+    },
+    {
+      "address": "0xc25be05870ce4fd33c65384ccb1cf2e3bd6eb686",
+      "privateKey": "0xe997694dc0773d736b8564052975f116319ce95414044b6893496fbcf0296cbc",
+      "balance": "0x0"
+    },
+    {
+      "address": "0x4ae78f6cb3a1434ec98d0f58b914903407d7a773",
+      "privateKey": "0x6422dcb223b8bd6f526dbbac3ddb440c71c040fe3e95a9b2d937f8c1f29c1ae2",
+      "balance": "0x0"
+    }
+  ]
+}

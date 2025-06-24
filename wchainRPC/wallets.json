@@ -1,0 +1,14 @@
+{
+  "wallets": [
+    {
+      "address": "Wac229a90dffdb89e6da3dda74cf98fb28e208a625",
+      "privateKey": "Wp80d604e28ba32bfafcec84c462ff4710be6ead12398a42cd270cb829e9f23392",
+      "balance": "Wb16345785d8a0000"
+    },
+    {
+      "address": "Waea1a809a027833d19ece95133e79da2ea6485922",
+      "privateKey": "Wpbd92a1ba31d6e982b5bafccf99f2f92ed82f2551aec0854cb1baabb8f2d6b777",
+      "balance": "Wbc7d713b49da0000"
+    }
+  ]
+}
