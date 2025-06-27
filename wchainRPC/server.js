@@ -3,6 +3,7 @@ const bodyParser = require('body-parser');
 const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const Wallet = require('ethereumjs-wallet').default;
 const client = require('./client');
 
@@ -12,8 +13,9 @@ app.use(bodyParser.json());
 
 const CHAIN_ID = '14006';
 const WALLET_DB_PATH = path.join(__dirname, 'wallets.json');
+const BLOCKS_PATH = path.join(__dirname, 'blocks.json');
 
-// ------------------- Helpers -------------------
+const txPool = [];
 
 function readWalletsDB() {
     return new Promise((resolve, reject) => {
@@ -46,6 +48,35 @@ function parseBalance(balanceWithPrefix) {
     return BigInt('0x' + balanceWithPrefix.slice(2));
 }
 
+function createBlock(index, previousHash, transactions, difficulty = 4) {
+    let nonce = 0;
+    let timestamp = Date.now();
+    let hash = '';
+
+    do {
+        nonce++;
+        timestamp = Date.now();
+        const raw = index + previousHash + JSON.stringify(transactions) + timestamp + nonce;
+        hash = crypto.createHash('sha256').update(raw).digest('hex');
+    } while (!hash.startsWith('0'.repeat(difficulty)));
+
+    return { index, previousHash, timestamp, transactions, nonce, hash };
+}
+
+function readChain() {
+    if (!fs.existsSync(BLOCKS_PATH)) return [];
+    return JSON.parse(fs.readFileSync(BLOCKS_PATH));
+}
+
+function writeChain(chain) {
+    fs.writeFileSync(BLOCKS_PATH, JSON.stringify(chain, null, 2));
+}
+
+if (!fs.existsSync(BLOCKS_PATH)) {
+    const genesis = createBlock(0, '0', [], 1);
+    writeChain([genesis]);
+}
+
 // ------------------- RPC Handler -------------------
 
 app.post('/blockchain', async (req, res) => {
@@ -54,7 +85,6 @@ app.post('/blockchain', async (req, res) => {
 
     try {
         switch (method) {
-
             case 'GetChainId':
                 client.GetChainId({}, (error, response) => {
                     if (error) {
@@ -68,13 +98,70 @@ app.post('/blockchain', async (req, res) => {
                 res.json({ jsonrpc: '2.0', result: `0x${parseInt(CHAIN_ID).toString(16)}`, id });
                 break;
 
-            case 'wcn_blockNumber':
-                res.json({ jsonrpc: '2.0', result: '0x1', id });
-                break;
-
             case 'net_version':
                 res.json({ jsonrpc: '2.0', result: CHAIN_ID, id });
                 break;
+
+            case 'wcn_blockNumber': {
+                const chain = readChain();
+                res.json({ jsonrpc: '2.0', result: '0x' + chain.length.toString(16), id });
+                break;
+            }
+
+            case 'wcn_getBlockByNumber': {
+                const [numberHex] = params;
+                const index = parseInt(numberHex, 16);
+                const chain = readChain();
+                const block = chain[index];
+
+                if (!block) {
+                    return res.status(404).json({ jsonrpc: '2.0', error: { code: -32602, message: 'Block not found' }, id });
+                }
+
+                res.json({ jsonrpc: '2.0', result: block, id });
+                break;
+            }
+
+            case 'wcn_mineBlock': {
+                const [minerAddress] = params || [];
+
+                if (!minerAddress) {
+                    return res.status(400).json({
+                        jsonrpc: '2.0',
+                        error: { code: -32602, message: 'Miner address required' },
+                        id
+                    });
+                }
+
+                const chain = readChain();
+                const previousBlock = chain[chain.length - 1] || { index: 0, hash: '0'.repeat(64) };
+
+                // rwd TX coinBase
+                const rewardTx = {
+                    from: 'W0',
+                    to: minerAddress,
+                    value: '1000000000000', // = 0.000001 WCN
+                    timestamp: Date.now()
+                };
+
+                const transactions = [...txPool, rewardTx];
+                txPool.length = 0;
+
+                const newBlock = createBlock(previousBlock.index + 1, previousBlock.hash, transactions);
+                chain.push(newBlock);
+                writeChain(chain);
+
+                const walletsDB = await readWalletsDB();
+                const minerWallet = walletsDB.wallets.find(w => w.address === minerAddress);
+                if (minerWallet) {
+                    const balance = parseBalance(minerWallet.balance);
+                    minerWallet.balance = 'Wb' + (balance + BigInt(rewardTx.value)).toString(16);
+                    await writeWalletsDB(walletsDB);
+                }
+
+                res.json({ jsonrpc: '2.0', result: newBlock, id });
+                break;
+            }
 
             case 'wcn_getBalance': {
                 const [address] = params;
@@ -87,34 +174,6 @@ app.post('/blockchain', async (req, res) => {
                 res.json({ jsonrpc: '2.0', result: hexBalance, id });
                 break;
             }
-
-            case 'wcn_getBlockByNumber':
-                res.json({
-                    jsonrpc: '2.0',
-                    result: {
-                        number: '0x1',
-                        hash: '0x0',
-                        parentHash: '0x0',
-                        nonce: '0x0',
-                        sha3Uncles: '0x0',
-                        logsBloom: '0x0',
-                        transactionsRoot: '0x0',
-                        stateRoot: '0x0',
-                        receiptsRoot: '0x0',
-                        miner: '0x0',
-                        difficulty: '0x0',
-                        totalDifficulty: '0x0',
-                        extraData: '0x0',
-                        size: '0x0',
-                        gasLimit: '0x0',
-                        gasUsed: '0x0',
-                        timestamp: '0x0',
-                        transactions: [],
-                        uncles: []
-                    },
-                    id
-                });
-                break;
 
             case 'addWallets': {
                 const [count] = params;
@@ -143,9 +202,7 @@ app.post('/blockchain', async (req, res) => {
 
             case 'wcn_sendTransaction': {
                 const [tx] = params;
-                const from = tx.from;
-                const to = tx.to;
-                const value = BigInt(tx.value);
+                const { from, to, value } = tx;
                 const walletsDB = await readWalletsDB();
 
                 const sender = walletsDB.wallets.find(w => w.address === from);
@@ -156,28 +213,33 @@ app.post('/blockchain', async (req, res) => {
                 }
 
                 const senderBalance = parseBalance(sender.balance);
-                if (senderBalance < value) {
+                const amount = BigInt(value);
+
+                if (senderBalance < amount) {
                     return res.status(400).json({ jsonrpc: '2.0', error: { code: -32000, message: 'Insufficient funds' }, id });
                 }
 
-                sender.balance = 'Wb' + (senderBalance - value).toString(16);
-                receiver.balance = 'Wb' + (parseBalance(receiver.balance) + value).toString(16);
+                sender.balance = 'Wb' + (senderBalance - amount).toString(16);
+                receiver.balance = 'Wb' + (parseBalance(receiver.balance) + amount).toString(16);
                 await writeWalletsDB(walletsDB);
 
-                res.json({ jsonrpc: '2.0', result: 'Transaction successful', id });
+                const txObj = { from, to, value, timestamp: Date.now() };
+                txPool.push(txObj);
+
+                res.json({ jsonrpc: '2.0', result: 'Transaction successful and added to txPool', id });
                 break;
             }
 
             case 'wcn_gasPrice':
-                res.json({ jsonrpc: '2.0', result: '0x12a05f200', id }); // 5 gwei
+                res.json({ jsonrpc: '2.0', result: '0x12a05f200', id });
                 break;
 
             case 'wcn_estimateGas':
-                res.json({ jsonrpc: '2.0', result: '0x5208', id }); // 21000 gas
+                res.json({ jsonrpc: '2.0', result: '0x5208', id });
                 break;
 
             case 'wcn_getTransactionCount':
-                res.json({ jsonrpc: '2.0', result: '0x1', id }); // dummy
+                res.json({ jsonrpc: '2.0', result: '0x1', id });
                 break;
 
             case 'info': {
