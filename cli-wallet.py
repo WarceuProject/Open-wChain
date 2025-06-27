@@ -1,4 +1,4 @@
-import requests
+import requests, signal
 import json
 from decimal import Decimal, getcontext
 
@@ -78,13 +78,46 @@ def send(from_addr, to_addr, amount):
     else:
         print(f"❌ Gagal kirim: {res.get('error')}")
 
-def mine():
-    res = send_rpc("wcn_mineBlock")
-    print(json.dumps(res, indent=2))
+#def mine():
+#    res = send_rpc("wcn_mineBlock")
+#    print(json.dumps(res, indent=2))
 
 def show_last_block():
     res = send_rpc("wcn_getBlockByNumber", ["0x1"])  # sementara blok tetap dummy 0x1
     print(json.dumps(res, indent=2))
+def mine():
+    miner = input("Masukkan address penambang: ").strip()
+    if not miner.startswith("Wa"):
+        print("❌ Address tidak valid.")
+        return
+
+    print("⛏️ Menambang... Tekan Ctrl+C untuk berhenti.\n")
+    try:
+        while True:
+            res = send_rpc("wcn_mineBlock", [miner])
+            if "result" in res:
+                block = res['result']
+                print(f"⛏️ Blok berhasil ditambang!")
+                print(f"Index   : {block['index']}")
+                print(f"Hash    : {block['hash']}")
+                print(f"Nonce   : {block['nonce']}")
+
+                # Ambil info terbaru wallet
+                info = send_rpc("wcn_getBalance", [miner])
+                reward = None
+                for tx in block['transactions']:
+                    if tx.get('to') == miner:
+                        reward = int(tx['value'])
+                        break
+                if reward:
+                    print(f"Info    : {miner} | reward: {reward} wei | balance: {hex_to_wcn(info.get('result', '0x0'))}")
+                print("-" * 40)
+            else:
+                print("❌ Mining gagal:", res.get("error"))
+                break
+    except KeyboardInterrupt:
+        print("\n🔁 Mining dihentikan. Kembali ke wallet CLI...")
+
 
 def repl():
     print("💻 Selamat datang di wChain Wallet CLI")
