@@ -33,21 +33,22 @@ def hex_to_wcn(hex_value):
 
 def help_menu():
     print("""
-Perintah yang tersedia:
-- info                        : Menampilkan semua wallet dan saldo (format manusiawi)
-- balance <address>          : Menampilkan saldo wallet tertentu
-- send <from> <to> <amount>  : Kirim WCN dari satu wallet ke wallet lain (dalam wei)
-- help                       : Menampilkan bantuan
-- exit / quit                : Keluar dari wallet CLI
+Perintah CLI yang tersedia:
+- info                              : Menampilkan semua wallet dan saldo (format manusiawi)
+- balance <address>                : Menampilkan saldo wallet tertentu
+- send <from> <to> <amount_in_wei> : Kirim WCN (dalam wei)
+- mine                             : Tambah blok baru (simulasi PoW)
+- block                            : Lihat blok terakhir
+- exit / quit                      : Keluar dari CLI
 """)
 
 def info():
     res = send_rpc("info")
     result = res.get("result", [])
     if not result:
-        print("Tidak ada wallet.")
+        print("⚠️  Tidak ada wallet.")
         return
-    print("=== Daftar Wallet ===")
+    print("📒 === Daftar Wallet ===")
     for wallet in result:
         print(f"Address: {wallet['address']}")
         print(f"Balance: {hex_to_wcn(wallet['balance'])}")
@@ -56,21 +57,37 @@ def info():
 def balance(address):
     res = send_rpc("wcn_getBalance", [address])
     if "result" in res:
-        print(f"Saldo {address}: {hex_to_wcn(res['result'])}")
+        print(f"💰 Saldo {address}: {hex_to_wcn(res['result'])}")
     else:
-        print("Gagal mengambil saldo.")
+        print(f"❌ Gagal mengambil saldo. Error: {res.get('error')}")
 
 def send(from_addr, to_addr, amount):
+    try:
+        amount = str(int(amount))  # pastikan integer
+    except:
+        print("❌ Amount harus berupa angka (wei).")
+        return
     tx = {
         "from": from_addr,
         "to": to_addr,
         "value": amount
     }
     res = send_rpc("wcn_sendTransaction", [tx])
+    if "result" in res:
+        print(f"✅ Transaksi berhasil: {res['result']}")
+    else:
+        print(f"❌ Gagal kirim: {res.get('error')}")
+
+def mine():
+    res = send_rpc("wcn_mineBlock")
+    print(json.dumps(res, indent=2))
+
+def show_last_block():
+    res = send_rpc("wcn_getBlockByNumber", ["0x1"])  # sementara blok tetap dummy 0x1
     print(json.dumps(res, indent=2))
 
 def repl():
-    print("Selamat datang di wChain Wallet CLI")
+    print("💻 Selamat datang di wChain Wallet CLI")
     print("Ketik 'help' untuk melihat perintah.")
     while True:
         try:
@@ -78,10 +95,10 @@ def repl():
             if not cmd:
                 continue
             parts = cmd.split()
-            command = parts[0]
+            command = parts[0].lower()
 
             if command in ["exit", "quit"]:
-                print("Keluar dari wallet...")
+                print("👋 Keluar dari wallet...")
                 break
             elif command == "help":
                 help_menu()
@@ -97,13 +114,17 @@ def repl():
                     print("Usage: send <from> <to> <amount>")
                 else:
                     send(parts[1], parts[2], parts[3])
+            elif command == "mine":
+                mine()
+            elif command == "block":
+                show_last_block()
             else:
-                print("Perintah tidak dikenal. Ketik 'help'.")
+                print("❓ Perintah tidak dikenal. Ketik 'help'.")
         except KeyboardInterrupt:
-            print("\nKeluar...")
+            print("\n👋 Keluar...")
             break
         except Exception as e:
-            print(f"Error: {e}")
+            print(f"⚠️  Error: {e}")
 
 if __name__ == "__main__":
     repl()
