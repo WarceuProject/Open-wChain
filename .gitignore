@@ -1,1 +1,5 @@
 wchainRPC-js
+core/chain/__pycache__/
+core/data/peers.json
+core/node/__pycache__/
+core/wallet/__pycache__/
