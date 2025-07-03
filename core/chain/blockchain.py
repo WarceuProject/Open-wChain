@@ -1,5 +1,5 @@
 # core/chain/blockchain.py
-import os, requests
+import os, requests, hashlib
 import json, time
 from .block import create_block
 from chain.tx_pool import load_tx_pool, save_tx_pool
@@ -108,3 +108,51 @@ def update_wallets_from_chain(chain):
                 wallets.append(address_map[to_addr])
 
     save_wallets(wallets)
+
+#validasikan block
+def hash_block(block):
+    block_data = {
+        "index": block["index"],
+        "previous_hash": block["previous_hash"],
+        "timestamp": block["timestamp"],
+        "transactions": block["transactions"],
+        "nonce": block["nonce"]
+    }
+    block_str = json.dumps(block_data, sort_keys=True)
+    return hashlib.sha256(block_str.encode()).hexdigest()
+
+def is_block_valid(block, previous_block, wallets):
+    if block["hash"] != hash_block(block):
+        print("[!] Invalid block hash.")
+        return False
+    if not block["hash"].startswith("0000"):
+        print("[!] Hash doesn't meet difficulty requirement.")
+        return False
+    if block["previous_hash"] != previous_block["hash"]:
+        print("[!] Previous hash mismatch.")
+        return False
+
+    # Validasi transaksi
+    address_map = {w["address"]: dict(w) for w in wallets}
+    for tx in block["transactions"]:
+        if tx["from"] == "COINBASE":
+            continue
+        if not verify_signature(tx["data"], tx["signature"], tx["publicKey"]):
+            print("[!] Invalid signature.")
+            return False
+        sender = address_map.get(tx["from"])
+        if not sender or sender["balance"] < tx["data"]["value"]:
+            print("[!] Insufficient balance.")
+            return False
+        sender["balance"] -= tx["data"]["value"]
+        receiver = address_map.get(tx["data"]["to"])
+        if receiver:
+            receiver["balance"] += tx["data"]["value"]
+        else:
+            address_map[tx["data"]["to"]] = {
+                "address": tx["data"]["to"],
+                "balance": tx["data"]["value"],
+                "privateKey": "",
+                "publicKey": ""
+            }
+    return True
