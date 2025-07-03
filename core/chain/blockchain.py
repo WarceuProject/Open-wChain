@@ -15,6 +15,7 @@ def load_chain():
         return json.load(f)
 
 def save_chain(chain):
+    os.makedirs(os.path.dirname(CHAIN_FILE), exist_ok=True)  
     with open(CHAIN_FILE, 'w') as f:
         json.dump(chain, f, indent=2)
 
