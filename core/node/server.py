@@ -54,15 +54,19 @@ def sync():
     block = request.json
     chain = load_chain()
 
-    if any(b['hash'] == block['hash'] for b in chain):
-        return jsonify({'result': 'Block already exists'}), 200
+    # Jika chain kosong, langsung terima block genesis
+    if len(chain) == 0:
+        chain.append(block)
+        save_chain(chain)
+        return jsonify({'result': 'Genesis block accepted'})
 
-    if block['previous_hash'] != chain[-1]['hash']:
-        return jsonify({'error': 'Invalid previous hash'}), 400
-
-    chain.append(block)
-    save_chain(chain)
-    return jsonify({'result': 'Block synced'})
+    # Jika block sebelumnya cocok, tambahkan
+    if block['previous_hash'] == chain[-1]['hash']:
+        chain.append(block)
+        save_chain(chain)
+        return jsonify({'result': 'Block accepted'})
+    
+    return jsonify({'error': 'Invalid block'}), 400
 #SYNC P2P - add_peer
 @app.route('/add_peer', methods=['POST'])
 def add_peer_route():
