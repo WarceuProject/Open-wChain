@@ -49,27 +49,35 @@ class WalletCLI(cmd.Cmd):
         "Send transaction from default wallet"
         wallets = load_wallets()
         sender = wallets[0]
-        to = input("To address: ")
-        value = int(input("Amount: "))
+
+        if not sender.get('privateKey'):
+            print("[!] This wallet doesn't have a private key.")
+            return
+
+        to = input("To address: ").strip()
+        value = int(input("Amount: ").strip())
 
         tx_data = {
             "to": to,
             "value": value,
             "timestamp": int(time.time())
         }
+
         tx_str = json.dumps(tx_data, sort_keys=True)
         signature = sign_transaction(sender['privateKey'], tx_str)
 
         full_tx = {
             "from": sender['address'],
             "data": tx_data,
-            "signature": signature
+            "signature": signature,
+            "publicKey": sender['publicKey']  # ← penting!
         }
 
         res = requests.post(RPC, json={
             "method": "wcn_sendTransaction",
             "params": [full_tx]
         })
+
         print(res.json())
 
     def do_mine(self, arg):

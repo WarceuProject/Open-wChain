@@ -32,17 +32,20 @@ def save_wallets(wallets):
         json.dump(wallets, f, indent=2)
 
 def sign_transaction(private_key_hex, tx_str):
+    if not private_key_hex:
+        raise ValueError("[!] Private key is empty")
+
     try:
         sk = ecdsa.SigningKey.from_string(bytes.fromhex(private_key_hex), curve=ecdsa.SECP256k1)
-    except Exception:
-        raise Exception("[!] Private key invalid. Must be hex.")
+    except ValueError:
+        raise ValueError("[!] Private key invalid. Must be a valid hex string.")
 
     signature = sk.sign(tx_str.encode())
     return signature.hex()
 
 def verify_signature(tx, signature_hex, public_key_hex):
-    vk = ecdsa.VerifyingKey.from_string(bytes.fromhex(public_key_hex), curve=ecdsa.SECP256k1)
     tx_str = json.dumps(tx, sort_keys=True).encode()
+    vk = ecdsa.VerifyingKey.from_string(bytes.fromhex(public_key_hex), curve=ecdsa.SECP256k1)
     try:
         return vk.verify(bytes.fromhex(signature_hex), tx_str)
     except ecdsa.BadSignatureError:
