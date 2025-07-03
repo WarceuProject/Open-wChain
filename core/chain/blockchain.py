@@ -81,35 +81,29 @@ def update_wallets_from_chain(chain):
     wallets = load_wallets()
     address_map = {w['address']: w for w in wallets}
 
+    # Reset balance semua wallet ke 0 dulu
+    for w in wallets:
+        w['balance'] = 0
+
+    # Hitung saldo dari semua transaksi di seluruh chain
     for block in chain:
         for tx in block['transactions']:
-            # Transaksi COINBASE (langsung transfer)
-            if tx.get("from") == "COINBASE":
-                to_addr = tx["to"]
-                value = tx["value"]
-                if to_addr not in address_map:
-                    address_map[to_addr] = {
-                        "address": to_addr, "balance": 0,
-                        "privateKey": "", "publicKey": ""
-                    }
+            sender_addr = tx.get('from')
+            to_addr = tx['data']['to'] if 'data' in tx else tx.get('to')
+            value = tx['data']['value'] if 'data' in tx else tx.get('value')
+
+            if sender_addr != "COINBASE" and sender_addr in address_map:
+                address_map[sender_addr]['balance'] -= value
+            if to_addr in address_map:
                 address_map[to_addr]['balance'] += value
             else:
-                from_addr = tx["from"]
-                to_addr = tx["data"]["to"]
-                value = tx["data"]["value"]
+                # Tambah wallet baru jika belum ada
+                address_map[to_addr] = {
+                    "address": to_addr,
+                    "privateKey": "",
+                    "publicKey": "",
+                    "balance": value
+                }
+                wallets.append(address_map[to_addr])
 
-                if from_addr not in address_map:
-                    address_map[from_addr] = {
-                        "address": from_addr, "balance": 0,
-                        "privateKey": "", "publicKey": ""
-                    }
-                if to_addr not in address_map:
-                    address_map[to_addr] = {
-                        "address": to_addr, "balance": 0,
-                        "privateKey": "", "publicKey": ""
-                    }
-
-                address_map[from_addr]['balance'] -= value
-                address_map[to_addr]['balance'] += value
-
-    save_wallets(list(address_map.values()))
+    save_wallets(wallets)
