@@ -5,6 +5,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from wallet.wallet import generate_wallet, load_wallets, save_wallets, sign_transaction
 
 RPC = 'http://localhost:8000/rpc'
+UNIT = 100_000_000  # 1 WCN = 100_000_000 unit
 
 class WalletCLI(cmd.Cmd):
     intro = "[openwchain-wallet] Type help or ? to list commands.\n"
@@ -54,13 +55,17 @@ class WalletCLI(cmd.Cmd):
         "List all wallets"
         for w in self.wallets:
             alias = w.get("alias", "N/A")
-            print(f"- {alias}:{w['address']}:{w.get('balance', 0)}")
+            balance = w.get("balance", 0) / UNIT
+            prefix = "*" if self.default_wallet and w['address'] == self.default_wallet['address'] else " "
+            print(f"{prefix} {alias}:{w['address']}:{balance:.8f} WCN")
 
     def do_info(self, alias):
         "Show wallet info: info <alias>"
         for w in self.wallets:
             if w.get("alias") == alias:
-                print(json.dumps(w, indent=2))
+                pretty = dict(w)
+                pretty["balance"] = f"{pretty.get('balance', 0) / UNIT:.8f} WCN"
+                print(json.dumps(pretty, indent=2))
                 return
         print("[!] Wallet not found.")
 
@@ -73,7 +78,8 @@ class WalletCLI(cmd.Cmd):
             "method": "wcn_getBalance",
             "params": [address]
         })
-        print("Balance:", res.json().get('result'))
+        balance = res.json().get('result', 0)
+        print(f"Balance: {balance / UNIT:.8f} WCN")
 
     def do_refresh(self, arg):
         "Refresh balances from blockchain"
@@ -96,12 +102,13 @@ class WalletCLI(cmd.Cmd):
             parts = arg.strip().split()
             if len(parts) != 2:
                 raise ValueError
-            to, value = parts[0], int(parts[1])
+            to = parts[0]
+            amount = float(parts[1])
+            value = int(amount * UNIT)
         except ValueError:
             print("Usage: send <to_address> <amount>")
             return
 
-        # Check balance
         res = requests.post(RPC, json={
             "method": "wcn_getBalance",
             "params": [self.default_wallet['address']]
@@ -109,7 +116,7 @@ class WalletCLI(cmd.Cmd):
         current_balance = res.json().get('result', 0)
 
         if value > current_balance:
-            print(f"[!] Insufficient balance. You have {current_balance}, need {value}.")
+            print(f"[!] Insufficient balance. You have {current_balance / UNIT:.8f} WCN, need {amount:.8f} WCN.")
             return
 
         tx_data = {
