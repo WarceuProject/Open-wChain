@@ -76,3 +76,21 @@ def mine_block(miner_address, _):
     save_tx_pool([])
 
     return block
+
+def update_wallets_from_chain(chain):
+    wallets = load_wallets()
+    address_map = {w['address']: w for w in wallets}
+
+    for block in chain:
+        for tx in block['transactions']:
+            from_addr = tx.get("from")
+            to_addr = tx.get("to")
+            value = tx.get("value")
+
+            if from_addr != "COINBASE" and from_addr in address_map:
+                address_map[from_addr]['balance'] -= value
+
+            if to_addr in address_map:
+                address_map[to_addr]['balance'] += value
+
+    save_wallets(list(address_map.values()))

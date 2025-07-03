@@ -2,7 +2,7 @@
 import os, sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from flask import Flask, request, jsonify
-from chain.blockchain import mine_block, save_chain, load_chain 
+from chain.blockchain import mine_block, save_chain, load_chain, update_wallets_from_chain
 from chain.tx_pool import add_transaction, load_tx_pool
 from node.peers import load_peers, add_peer
 from wallet.wallet import load_wallets, verify_signature
@@ -54,18 +54,18 @@ def sync():
     block = request.json
     chain = load_chain()
 
-    # Jika chain kosong, langsung terima block genesis
     if len(chain) == 0:
         chain.append(block)
         save_chain(chain)
+        update_wallets_from_chain(chain)
         return jsonify({'result': 'Genesis block accepted'})
 
-    # Jika block sebelumnya cocok, tambahkan
     if block['previous_hash'] == chain[-1]['hash']:
         chain.append(block)
         save_chain(chain)
+        update_wallets_from_chain(chain)
         return jsonify({'result': 'Block accepted'})
-    
+
     return jsonify({'error': 'Invalid block'}), 400
 #SYNC P2P - add_peer
 @app.route('/add_peer', methods=['POST'])
