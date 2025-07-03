@@ -1,4 +1,6 @@
 # core/cli/wallet_cli.py
+import os, sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from wallet.wallet import generate_wallet, load_wallets, save_wallets, sign_transaction
 import requests, time
 
