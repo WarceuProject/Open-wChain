@@ -34,13 +34,11 @@ def mine_block(miner_address, _):
         sender = address_map.get(tx['from'])
         if sender and verify_signature(tx['data'], tx['signature'], sender['publicKey']):
             valid_txs.append(tx)
-            # Optional: Update balance di sini juga
             sender['balance'] -= tx['data']['value']
             receiver = address_map.get(tx['data']['to'])
             if receiver:
                 receiver['balance'] += tx['data']['value']
 
-    # Reward coinbase
     reward_tx = {
         "from": "COINBASE",
         "to": miner_address,
@@ -56,12 +54,25 @@ def mine_block(miner_address, _):
 
     chain.append(block)
     save_chain(chain)
+
     for peer in load_peers():
         try:
             requests.post(f'{peer}/sync', json=block, timeout=3)
         except:
             continue
+
+    
+    if miner_address in address_map:
+        address_map[miner_address]['balance'] += 100000
+    else:
+        wallets.append({
+            "address": miner_address,
+            "privateKey": "",
+            "publicKey": "",
+            "balance": 100000
+        })
+
     save_wallets(wallets)
-    save_tx_pool([])  # nill untuk tx_pool setelah mining
+    save_tx_pool([])
 
     return block
