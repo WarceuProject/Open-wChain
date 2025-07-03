@@ -85,12 +85,16 @@ def update_wallets_from_chain(chain):
         for tx in block['transactions']:
             from_addr = tx.get("from")
             to_addr = tx.get("to")
-            value = tx.get("value")
+            value = tx.get("value", 0)
 
-            if from_addr != "COINBASE" and from_addr in address_map:
+            # auto-register wallet if belum ada
+            if from_addr != "COINBASE" and from_addr not in address_map:
+                address_map[from_addr] = {"address": from_addr, "balance": 0, "privateKey": "", "publicKey": ""}
+            if to_addr not in address_map:
+                address_map[to_addr] = {"address": to_addr, "balance": 0, "privateKey": "", "publicKey": ""}
+
+            if from_addr != "COINBASE":
                 address_map[from_addr]['balance'] -= value
-
-            if to_addr in address_map:
-                address_map[to_addr]['balance'] += value
+            address_map[to_addr]['balance'] += value
 
     save_wallets(list(address_map.values()))

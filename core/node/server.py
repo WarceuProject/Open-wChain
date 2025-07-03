@@ -67,6 +67,7 @@ def sync():
         return jsonify({'result': 'Block accepted'})
 
     return jsonify({'error': 'Invalid block'}), 400
+
 #SYNC P2P - add_peer
 @app.route('/add_peer', methods=['POST'])
 def add_peer_route():
