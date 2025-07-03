@@ -83,18 +83,33 @@ def update_wallets_from_chain(chain):
 
     for block in chain:
         for tx in block['transactions']:
-            from_addr = tx.get("from")
-            to_addr = tx.get("to")
-            value = tx.get("value", 0)
+            # Transaksi COINBASE (langsung transfer)
+            if tx.get("from") == "COINBASE":
+                to_addr = tx["to"]
+                value = tx["value"]
+                if to_addr not in address_map:
+                    address_map[to_addr] = {
+                        "address": to_addr, "balance": 0,
+                        "privateKey": "", "publicKey": ""
+                    }
+                address_map[to_addr]['balance'] += value
+            else:
+                from_addr = tx["from"]
+                to_addr = tx["data"]["to"]
+                value = tx["data"]["value"]
 
-            # auto-register wallet if belum ada
-            if from_addr != "COINBASE" and from_addr not in address_map:
-                address_map[from_addr] = {"address": from_addr, "balance": 0, "privateKey": "", "publicKey": ""}
-            if to_addr not in address_map:
-                address_map[to_addr] = {"address": to_addr, "balance": 0, "privateKey": "", "publicKey": ""}
+                if from_addr not in address_map:
+                    address_map[from_addr] = {
+                        "address": from_addr, "balance": 0,
+                        "privateKey": "", "publicKey": ""
+                    }
+                if to_addr not in address_map:
+                    address_map[to_addr] = {
+                        "address": to_addr, "balance": 0,
+                        "privateKey": "", "publicKey": ""
+                    }
 
-            if from_addr != "COINBASE":
                 address_map[from_addr]['balance'] -= value
-            address_map[to_addr]['balance'] += value
+                address_map[to_addr]['balance'] += value
 
     save_wallets(list(address_map.values()))
