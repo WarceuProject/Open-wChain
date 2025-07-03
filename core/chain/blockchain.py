@@ -1,7 +1,9 @@
-# openwchain/chain/blockchain.py
+# core/chain/blockchain.py
 import os
 import json, time
 from .block import create_block
+from chain.tx_pool import load_tx_pool, save_tx_pool
+from wallet.wallet import verify_signature, load_wallets, save_wallets
 
 CHAIN_FILE = 'data/blocks.json'
 
@@ -15,17 +17,41 @@ def save_chain(chain):
     with open(CHAIN_FILE, 'w') as f:
         json.dump(chain, f, indent=2)
 
-def mine_block(miner_address, tx_pool):
+def mine_block(miner_address, _):
     chain = load_chain()
-    previous_hash = chain[-1]['hash'] if chain else '0' * 64
-    index = len(chain)
+    tx_pool = load_tx_pool()
+    valid_txs = []
+
+    wallets = load_wallets()
+    address_map = {w['address']: w for w in wallets}
+
+    for tx in tx_pool:
+        sender = address_map.get(tx['from'])
+        if sender and verify_signature(tx['data'], tx['signature'], sender['publicKey']):
+            valid_txs.append(tx)
+            # Optional: Update balance di sini juga
+            sender['balance'] -= tx['data']['value']
+            receiver = address_map.get(tx['data']['to'])
+            if receiver:
+                receiver['balance'] += tx['data']['value']
+
+    # Reward coinbase
     reward_tx = {
         "from": "COINBASE",
         "to": miner_address,
         "value": 100000,
         "timestamp": int(time.time())
     }
-    block = create_block(index, previous_hash, tx_pool + [reward_tx])
+
+    block = create_block(
+        index=len(chain),
+        previous_hash=chain[-1]['hash'] if chain else '0' * 64,
+        transactions=valid_txs + [reward_tx]
+    )
+
     chain.append(block)
     save_chain(chain)
+    save_wallets(wallets)
+    save_tx_pool([])  # nill untuk tx_pool setelah mining
+
     return block

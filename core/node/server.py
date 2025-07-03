@@ -1,7 +1,9 @@
-# openwchain/node/server.py
+# core/node/server.py
 from flask import Flask, request, jsonify
 from chain.blockchain import mine_block, load_chain
-from wallet.wallet import load_wallets
+from chain.tx_pool import add_transaction, load_tx_pool
+from wallet.wallet import load_wallets, verify_signature
+
 
 app = Flask(__name__)
 
@@ -29,13 +31,16 @@ def rpc():
         tx = params[0]
         wallets = load_wallets()
         sender = next((w for w in wallets if w['address'] == tx['from']), None)
+    
         if not sender:
             return jsonify({'error': 'Sender not found'}), 400
-        from wallet.wallet import verify_signature
-        is_valid = verify_signature(tx['data'], tx['signature'], sender['publicKey'])
-        if not is_valid:
+    
+        if not verify_signature(tx['data'], tx['signature'], sender['publicKey']):
             return jsonify({'error': 'Invalid signature'}), 400
-        return jsonify({'result': 'Transaction received (not yet mined)'})
+    
+        add_transaction(tx)
+        return jsonify({'result': 'Transaction added to pool'})
+
 
     else:
         return jsonify({'error': 'Method not found'}), 404

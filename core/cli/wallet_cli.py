@@ -1,4 +1,4 @@
-# openwchain/cli/wallet_cli.py
+# core/cli/wallet_cli.py
 from wallet.wallet import generate_wallet, load_wallets, save_wallets, sign_transaction
 import requests, time
 
