@@ -16,7 +16,8 @@ def generate_wallet():
         "address": address,
         "privateKey": priv,
         "publicKey": pub,
-        "balance": 0
+        "balance": 0,
+        "isLocal": True
     }
 
 def load_wallets():

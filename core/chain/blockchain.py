@@ -102,7 +102,8 @@ def update_wallets_from_chain(chain):
                     "address": to_addr,
                     "privateKey": "",
                     "publicKey": "",
-                    "balance": value
+                    "balance": value,
+                    "isLocal": False
                 }
                 wallets.append(address_map[to_addr])
 
