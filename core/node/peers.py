@@ -4,7 +4,7 @@ import os
 PEERS_FILE = 'data/peers.json'
 
 def load_peers():
-    if not os.path(PEERS_FILE):
+    if not os.path.exists(PEERS_FILE):
         return []
     with open(PEERS_FILE, 'r') as f:
         return json.load(f)
