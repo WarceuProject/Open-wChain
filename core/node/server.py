@@ -78,4 +78,4 @@ def add_peer_route():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8000, debug=True)
-
+#Terkadang perasaan itu harus di debug, agar kita tahu apakah dia juga memiliki rasa?
