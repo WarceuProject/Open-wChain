@@ -13,7 +13,7 @@ def save_peers(peers):
     with open(PEERS_FILE, 'w') as f:
         json.dump(peers, f, indent=2)
 
-def add_peers(url):
+def add_peer(url):
     peers = load_peers()
     if url not in peers:
         peers.append(url)
