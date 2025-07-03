@@ -1,9 +1,10 @@
 # core/chain/blockchain.py
-import os
+import os, requests
 import json, time
 from .block import create_block
 from chain.tx_pool import load_tx_pool, save_tx_pool
 from wallet.wallet import verify_signature, load_wallets, save_wallets
+from node.peers import load_peers
 
 CHAIN_FILE = 'data/blocks.json'
 
@@ -16,6 +17,9 @@ def load_chain():
 def save_chain(chain):
     with open(CHAIN_FILE, 'w') as f:
         json.dump(chain, f, indent=2)
+
+
+
 
 def mine_block(miner_address, _):
     chain = load_chain()
@@ -51,6 +55,11 @@ def mine_block(miner_address, _):
 
     chain.append(block)
     save_chain(chain)
+    for peer in load_peers():
+        try:
+            requests.post(f'{peer}/sync', json=block, timeout=3)
+        except:
+            continue
     save_wallets(wallets)
     save_tx_pool([])  # nill untuk tx_pool setelah mining
 

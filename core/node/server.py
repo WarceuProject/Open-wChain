@@ -1,12 +1,13 @@
 # core/node/server.py
 from flask import Flask, request, jsonify
-from chain.blockchain import mine_block, load_chain
+from chain.blockchain import mine_block, save_chain, load_chain 
 from chain.tx_pool import add_transaction, load_tx_pool
+from node.peers import load_peers, add_peer
 from wallet.wallet import load_wallets, verify_signature
 
 
 app = Flask(__name__)
-
+#RPC
 @app.route('/rpc', methods=['POST'])
 def rpc():
     data = request.json
@@ -31,19 +32,42 @@ def rpc():
         tx = params[0]
         wallets = load_wallets()
         sender = next((w for w in wallets if w['address'] == tx['from']), None)
-    
+
         if not sender:
             return jsonify({'error': 'Sender not found'}), 400
-    
+
         if not verify_signature(tx['data'], tx['signature'], sender['publicKey']):
             return jsonify({'error': 'Invalid signature'}), 400
-    
+
         add_transaction(tx)
         return jsonify({'result': 'Transaction added to pool'})
 
 
     else:
         return jsonify({'error': 'Method not found'}), 404
+
+#SYNC P2P
+@app.route('/sync', methods=['POST'])
+def sync():
+    block = request.json
+    chain = load_chain()
+
+    if any(b['hash'] == block['hash'] for b in chain):
+        return jsonify({'result': 'Block already exists'}), 200
+
+    if block['previous_hash'] != chain[-1]['hash']:
+        return jsonify({'error': 'Invalid previous hash'}), 400
+
+    chain.append(block)
+    save_chain(chain)
+    return jsonify({'result': 'Block synced'})
+#SYNC P2P - add_peer
+@app.route('/add_peer', methods=['POST'])
+def add_peer_route():
+    data = request.json
+    peer_url = data.get('url')
+    add_peer(peer_url)
+    return jsonify({'result': 'Peer added'})
 
 if __name__ == '__main__':
     app.run(port=8000)
