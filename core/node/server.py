@@ -125,6 +125,7 @@ def sync():
     chain = load_chain()
     wallets = load_wallets()
 
+    # Handle genesis block
     if len(chain) == 0:
         log.info("[SYNC] Accepting genesis block")
         chain.append(block)
@@ -141,8 +142,24 @@ def sync():
         return jsonify({'result': 'Block accepted'})
     else:
         log.warning("[SYNC] Invalid block received. Trying auto-sync from peer...")
-        if auto_sync_from_peer():
-            return jsonify({'result': 'Synced from peer'}), 200
+
+        # Auto-sync logic
+        peer_ip = request.remote_addr
+        try:
+            response = requests.get(f"http://{peer_ip}:8000/fullchain", timeout=3)
+            peer_chain = response.json().get('chain', [])
+            peer_length = response.json().get('length', 0)
+
+            if peer_chain and peer_length > len(chain):
+                save_chain(peer_chain)
+                update_wallets_from_chain(peer_chain)
+                log.info("[SYNC] Local chain replaced by longer chain from peer.")
+                return jsonify({'result': 'Synced from peer'}), 200
+            else:
+                log.warning("[SYNC] Peer chain not longer or invalid.")
+        except Exception as e:
+            log.error(f"[SYNC] Failed to fetch chain from peer: {e}")
+
         return jsonify({'error': 'Invalid block'}), 400
 
     #return jsonify({'error': 'Invalid block'}), 400
