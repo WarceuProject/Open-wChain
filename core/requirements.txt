@@ -1,2 +1,4 @@
 Flask
 ecdsa
+requests
+hashlib
