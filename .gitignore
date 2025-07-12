@@ -3,3 +3,4 @@ core/chain/__pycache__/
 core/data/
 core/node/__pycache__/
 core/wallet/__pycache__/
+chain/fuckydummy.py
