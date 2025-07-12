@@ -108,7 +108,6 @@ def update_wallets_from_chain(chain):
                 wallets.append(address_map[to_addr])
 
     save_wallets(wallets)
-
 #validasikan block
 def hash_block(block):
     block_data = {

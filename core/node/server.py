@@ -1,11 +1,19 @@
 # core/node/server.py
-import os, sys
+import os, sys, requests, logging
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from flask import Flask, request, jsonify
-from chain.blockchain import mine_block, save_chain, load_chain
+from chain.blockchain import mine_block, save_chain, load_chain, is_block_valid, update_wallets_from_chain
 from chain.tx_pool import add_transaction, load_tx_pool
 from node.peers import load_peers, add_peer
-from wallet.wallet import verify_signature
+from wallet.wallet import verify_signature, load_wallets
+
+# Setup logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='[%(asctime)s] %(levelname)s - %(message)s',
+    datefmt='%H:%M:%S'
+)
+log = logging.getLogger()
 
 app = Flask(__name__)
 
@@ -32,6 +40,8 @@ def rpc():
     data = request.json
     method = data.get('method')
     params = data.get('params', [])
+    log.info(f"RPC Method Called: {method} | Params: {params}")
+
 
     if method == 'wcn_blockNumber':
         return jsonify({'result': hex(len(load_chain()))})
@@ -39,6 +49,15 @@ def rpc():
     elif method == 'wcn_mineBlock':
         miner = params[0]
         block = mine_block(miner, [])
+        log.info(f"[⛏️] Mined block by {miner} with hash {block['hash']}")
+
+
+        # Broadcast ke semua peers
+        for peer in load_peers():
+            try:
+                requests.post(f"{peer}/sync", json=block, timeout=2)
+            except Exception:
+                continue  
         return jsonify({'result': block})
 
     elif method == 'wcn_getBalance':
@@ -48,11 +67,29 @@ def rpc():
     elif method == 'wcn_sendTransaction':
         tx = params[0]
         public_key = tx.get("publicKey")
+        sender = tx.get("from")
+        to = tx["data"]["to"]
+        value = tx["data"]["value"]
+        log.info(f"[TX] Received transaction from {sender} to {to} amount {value}")
+
+        # validasikan signature 
         if not public_key or not verify_signature(tx['data'], tx['signature'], public_key):
+            
+            log.warning(f"[TX] Invalid signature from {sender}")
             return jsonify({'error': 'Invalid signature'}), 400
 
+        # validasikan saldo apakah cukup? jangan sampai saldo tidak cukup seperti kamu yang tidak cukup perhatian anjay
+        balance = calculate_balance(sender)
+        if balance < value:
+
+            log.warning(f"[TX] Insufficient balance for {sender}: has {balance}, needs {value}")
+            return jsonify({'error': f'Insufficient balance. Available: {balance}'}), 400
+
+        # tambah ke pool transaksi seperti menambahkannya ke dalam hatimu 
+        log.info(f"[TX] Transaction accepted from {sender}")
         add_transaction(tx)
         return jsonify({'result': 'Transaction added to pool'})
+
 
     return jsonify({'error': 'Method not found'}), 404
 
@@ -60,27 +97,51 @@ def rpc():
 @app.route('/sync', methods=['POST'])
 def sync():
     block = request.json
+    log.info(f"[SYNC] Received block {block['index']} with hash {block['hash']}")
     chain = load_chain()
+    wallets = load_wallets()
 
     if len(chain) == 0:
+        log.info("[SYNC] Accepting genesis block")
         chain.append(block)
         save_chain(chain)
+        update_wallets_from_chain(chain)
         return jsonify({'result': 'Genesis block accepted'})
 
-    if block['previous_hash'] == chain[-1]['hash']:
+    last_block = chain[-1]
+    if is_block_valid(block, last_block, wallets):
+        log.info("[SYNC] Block is valid. Appending to chain.")
         chain.append(block)
         save_chain(chain)
+        update_wallets_from_chain(chain)
         return jsonify({'result': 'Block accepted'})
+    else:
+        log.warning("[SYNC] Invalid block received.")
+        return jsonify({'error': 'Invalid block'}), 400
 
-    return jsonify({'error': 'Invalid block'}), 400
+    #return jsonify({'error': 'Invalid block'}), 400
 
 # === Add peer endpoint ===
 @app.route('/add_peer', methods=['POST'])
 def add_peer_route():
     data = request.json
     peer_url = data.get('url')
+    if not peer_url or not peer_url.startswith("http"):
+        log.warning(f"[PEER] Invalid peer URL attempted: {peer_url}")
+        return jsonify({'error': 'Invalid peer URL'}), 400
     add_peer(peer_url)
+    log.info(f"[PEER] Added peer: {peer_url}")
     return jsonify({'result': 'Peer added'})
+
+# === GET peers endpoint ===
+@app.route('/peers', methods=['GET'])
+def get_peers():
+    return jsonify(load_peers())
+
+# === Get chain endpoint === 
+@app.route('/chain', methods=['GET'])
+def get_chain():
+    return jsonify(load_chain())
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8000, debug=True)
