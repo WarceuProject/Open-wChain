@@ -16,7 +16,7 @@ logging.basicConfig(
 log = logging.getLogger()
 
 app = Flask(__name__)
-
+# kalkulasikan saldo
 def calculate_balance(address):
     chain = load_chain()
     balance = 0
@@ -33,6 +33,30 @@ def calculate_balance(address):
                 balance += value
 
     return balance
+# auto sync dari peer
+def auto_sync_from_peer():
+    for peer in load_peers():
+        try:
+            res = requests.get(f"{peer}/fullchain", timeout=2)
+            data = res.json()
+            new_chain = data['chain']
+            if len(new_chain) > len(load_chain()):
+                save_chain(new_chain)
+                update_wallets_from_chain(new_chain)
+                log.info(f"[SYNC] Chain replaced from peer {peer}")
+                return True
+        except Exception as e:
+            log.warning(f"[SYNC] Failed to sync from {peer}: {e}")
+    return False
+
+
+# === Full Chain ===
+@app.route('/fullchain', methods=['GET'])
+def full_chain():
+    return jsonify({
+        'length': len(load_chain()),
+        'chain': load_chain()
+    })
 
 # === RPC endpoint ===
 @app.route('/rpc', methods=['POST'])
@@ -116,7 +140,9 @@ def sync():
         update_wallets_from_chain(chain)
         return jsonify({'result': 'Block accepted'})
     else:
-        log.warning("[SYNC] Invalid block received.")
+        log.warning("[SYNC] Invalid block received. Trying auto-sync from peer...")
+        if auto_sync_from_peer():
+            return jsonify({'result': 'Synced from peer'}), 200
         return jsonify({'error': 'Invalid block'}), 400
 
     #return jsonify({'error': 'Invalid block'}), 400
@@ -142,6 +168,8 @@ def get_peers():
 @app.route('/chain', methods=['GET'])
 def get_chain():
     return jsonify(load_chain())
+
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8000, debug=True)
