@@ -1,8 +1,10 @@
 import os, sys, json, time, requests
 import cmd
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from wallet.wallet import generate_wallet, load_wallets, save_wallets, sign_transaction
+#sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'app)))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
+from app.config import DATA_DIR
+from lib.wallet.wallet import generate_wallet, load_wallets, save_wallets, sign_transaction
 
 RPC = 'http://localhost:8000/rpc'
 UNIT = 100_000_000  # 1 WCN = 100_000_000 unit

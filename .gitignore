@@ -1,7 +1,32 @@
-wchainRPC-js
-core/chain/__pycache__/
-core/data/
-core/node/__pycache__/
-core/wallet/__pycache__/
-chain/fuckydummy.py
-x.py
+# Bytecode Python
+__pycache__/
+*.py[cod]
+
+# Environment / venv
+.env
+.venv/
+*.env
+
+# OS/system files
+.DS_Store
+Thumbs.db
+
+# Backup / sementara
+*.bak
+*.swp
+*.swo
+
+# Storage runtime
+storage/data/
+lib/data/
+lib/data.bak/
+
+# Logs
+*.log
+
+# IDE/editor settings
+.vscode/
+.idea/
+
+# Jupyter notebook checkpoints 
+.ipynb_checkpoints/

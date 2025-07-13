@@ -1,9 +1,10 @@
 # core/chain/tx_pool.py
 import json
 import os
+from app.config import DATA_DIR
 
-TX_POOL_FILE = 'data/tx_pool.json'
-
+#TX_POOL_FILE = 'data/tx_pool.json'
+TX_POOL_FILE = os.path.join(DATA_DIR, "tx_pool.json")
 def load_tx_pool():
     if not os.path.exists(TX_POOL_FILE):
         return []

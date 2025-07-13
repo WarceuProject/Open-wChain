@@ -1,11 +1,12 @@
 # core/node/server.py
 import os, sys, requests, logging
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'lib' )))
 from flask import Flask, request, jsonify
-from chain.blockchain import mine_block, save_chain, load_chain, is_block_valid, update_wallets_from_chain
-from chain.tx_pool import add_transaction, load_tx_pool
-from node.peers import load_peers, add_peer
-from wallet.wallet import verify_signature, load_wallets
+#from app.config import DATA_DIR
+from lib.chain.blockchain import mine_block, save_chain, load_chain, is_block_valid, update_wallets_from_chain
+from lib.chain.tx_pool import add_transaction, load_tx_pool
+from lib.node.peers import load_peers, add_peer
+from lib.wallet.wallet import verify_signature, load_wallets
 
 # Setup logging
 logging.basicConfig(

@@ -1,13 +1,14 @@
 # core/chain/blockchain.py
 import os, requests, hashlib
 import json, time
+
 from .block import create_block
 from chain.tx_pool import load_tx_pool, save_tx_pool
 from wallet.wallet import verify_signature, load_wallets, save_wallets
 from node.peers import load_peers
-
-CHAIN_FILE = 'data/blocks.json'
-
+from app.config import DATA_DIR
+#CHAIN_FILE = 'data/blocks.json'
+CHAIN_FILE = os.path.join(DATA_DIR, "blocks.json")
 def load_chain():
     if not os.path.exists(CHAIN_FILE):
         return []
@@ -69,7 +70,7 @@ def mine_block(miner_address, _):
             "address": miner_address,
             "privateKey": "",
             "publicKey": "",
-            "balance": 100000
+            "balance": 100000 # unit reward 100.0000 unit = satoshis = 0.00100000 WCN
         })
 
     save_wallets(wallets)

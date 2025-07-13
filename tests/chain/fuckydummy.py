@@ -1,10 +1,10 @@
 # core/chain/blockchain.py
 import os, requests, hashlib
 import json, time
-from .block import create_block
-from chain.tx_pool import load_tx_pool, save_tx_pool
-from wallet.wallet import verify_signature, load_wallets, save_wallets
-from node.peers import load_peers
+from ...lib.chain.block import create_block
+from lib.chain.tx_pool import load_tx_pool, save_tx_pool
+from lib.wallet.wallet import verify_signature, load_wallets, save_wallets
+from lib.node.peers import load_peers
 
 CHAIN_FILE = 'data/blocks.json'
 
@@ -157,7 +157,7 @@ def is_block_valid(block, previous_block, wallets):
     return True# core/chain/blockchain.py
     import os, requests, hashlib
     import json, time
-    from .block import create_block
+    from ...lib.chain.block import create_block
     from chain.tx_pool import load_tx_pool, save_tx_pool
     from wallet.wallet import verify_signature, load_wallets, save_wallets
     from node.peers import load_peers

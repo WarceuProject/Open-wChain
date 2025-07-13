@@ -1,8 +1,9 @@
 import json
 import os
+from app.config import DATA_DIR
 
-PEERS_FILE = 'data/peers.json'
-
+#PEERS_FILE = 'data/peers.json'
+PEERS_FILE = os.path.join(DATA_DIR, "peers.json")
 def load_peers():
     if not os.path.exists(PEERS_FILE):
         return []

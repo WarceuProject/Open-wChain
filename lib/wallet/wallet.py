@@ -3,8 +3,10 @@ import ecdsa
 import os
 import hashlib
 import json
-
-WALLET_DB = 'data/wallets.json'
+import sys
+#sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'app')))
+from app.config import DATA_DIR
+WALLET_DB = os.path.join(DATA_DIR, "wallets.json")
 
 def generate_wallet():
     sk = ecdsa.SigningKey.generate(curve=ecdsa.SECP256k1)
