@@ -17,7 +17,8 @@ Thumbs.db
 *.swo
 
 # Storage runtime
-storage/data/
+storage/data/*
+!storage/data/README.md
 lib/data/
 lib/data.bak/
 

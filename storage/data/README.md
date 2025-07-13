@@ -1,0 +1,1 @@
+# [!]Ini adalah lingkungan data runtime, Don't fucking commit this file! 
