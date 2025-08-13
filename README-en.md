@@ -78,5 +78,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND.
 See also: `KOMUNITAS_KOMUNITAS.md`
 
 ---
+Docs : ```docs/INITIAL_DEVELOPMENT.md```
 
 _"Experimentation is the root of innovation. OwCN is an open laboratory for blockchain ideas."_
