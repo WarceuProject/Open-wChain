@@ -1,7 +1,8 @@
 # Bytecode Python
 __pycache__/
 *.py[cod]
-
+# Umum
+app/__pycache__/
 # Environment / venv
 .env
 .venv/
