@@ -17,6 +17,10 @@ logging.basicConfig(
 log = logging.getLogger()
 
 app = Flask(__name__)
+@app.route("/")
+def home():
+    return {"status": "running"}
+
 # kalkulasikan saldo
 def calculate_balance(address):
     chain = load_chain()
@@ -189,6 +193,24 @@ def get_chain():
 
 
 
+
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8000, debug=True)
+    #app.run(host='0.0.0.0', port=8000, debug=True)
+        debug = True
+        use_reloader = True
+
+else:
+    # Kalau di-import → Production
+    debug = False
+    use_reloader = False
+
+def run_server():
+    app.run(
+        host="0.0.0.0",
+        port=8000,
+        debug=False,
+        use_reloader=False
+    )
+
+
 #Terkadang perasaan itu harus di debug, agar kita tahu apakah dia juga memiliki rasa?
