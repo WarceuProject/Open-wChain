@@ -1,0 +1,19 @@
+/* app/web/static/style.css - minimal styling */
+body{ font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial; background:#f6f8fa; color:#111; margin:0; }
+.container{ max-width:1100px; margin:24px auto; padding:0 18px; }
+.topbar{ background:#0b2338; color:#fff; padding:12px 0; }
+.topbar .container{ display:flex; align-items:center; gap:12px; justify-content:space-between; }
+.brand{ color:#fff; font-weight:700; text-decoration:none; font-size:18px; }
+.topbar nav a{ color:#cfe7ff; margin-left:12px; text-decoration:none; font-size:14px; }
+.search{ margin-left:auto; display:flex; gap:6px; }
+.search input{ padding:6px 8px; border-radius:4px; border:1px solid #ddd; }
+.search button{ padding:6px 8px; border-radius:4px; border:0; background:#3aa0ff; color:#fff; }
+.table{ width:100%; border-collapse:collapse; margin-top:12px; background:#fff; border:1px solid #e6e9ed; border-radius:6px; overflow:hidden; }
+.table th, .table td{ padding:10px 8px; border-bottom:1px solid #e6e9ed; text-align:left; }
+.mono{ font-family: "Courier New", monospace; }
+.card{ background:#fff; padding:12px; border:1px solid #e6e9ed; border-radius:6px; }
+.small{ font-size:12px; color:#666; word-break:break-word; }
+.footer{ margin:36px 0; text-align:center; color:#666; }
+.row.meta{ display:flex; gap:18px; margin:12px 0; flex-wrap:wrap; }
+a { color: #0b5ed7; text-decoration: none; }
+a:hover { text-decoration: underline; }

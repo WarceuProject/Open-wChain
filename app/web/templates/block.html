@@ -1,0 +1,30 @@
+{% extends "layout.html" %}
+{% block content %}
+<h1>Block #{{ block.index }}</h1>
+<div class="card">
+  <dl>
+    <dt>Hash</dt><dd class="mono">{{ block.hash }}</dd>
+    <dt>Previous</dt><dd class="mono">{{ block.previous_hash }}</dd>
+    <dt>Timestamp</dt><dd>{{ format_time(block.timestamp) }}</dd>
+    <dt>Nonce</dt><dd>{{ block.nonce }}</dd>
+    <dt>Transactions</dt><dd>{{ block.transactions|length }}</dd>
+    <dt>Reward total</dt><dd class="mono">{{ reward_wcn }} WCN</dd>
+  </dl>
+</div>
+
+<h2>Transactions</h2>
+<table class="table">
+  <thead><tr><th>TXID</th><th>From</th><th>To</th><th>Amount (WCN)</th><th>Fee (WCN)</th></tr></thead>
+  <tbody>
+    {% for tx in txs %}
+    <tr>
+      <td><a href="{{ url_for('tx_view', txid=tx.txid) }}" class="mono">{{ tx.txid[:12] }}…</a></td>
+      <td>{{ tx.from_display }}</td>
+      <td>{{ tx.to_display }}</td>
+      <td class="mono">{{ tx.value_wcn }}</td>
+      <td class="mono">{{ tx.fee_wcn if tx.fee_wcn else '-' }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

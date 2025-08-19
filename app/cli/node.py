@@ -2,7 +2,7 @@ import os
 import sys
 import subprocess
 import signal
-
+#from lib.node.server import start_server as run_server
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
 PID_FILE = os.path.join(BASE_DIR, "node.pid")
 LOG_FILE = os.path.join(BASE_DIR, "debug.log")

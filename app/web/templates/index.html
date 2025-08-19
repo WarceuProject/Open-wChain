@@ -1,0 +1,29 @@
+{% extends "layout.html" %}
+{% block content %}
+<h1>Latest Blocks</h1>
+
+<div class="row meta">
+  <div>Blocks: <strong>{{ total_blocks }}</strong></div>
+  <div>Txs: <strong>{{ total_txs }}</strong></div>
+  <div>Mempool: <strong>{{ mempool_size }}</strong></div>
+  <div>Max Supply: <strong>{{ max_supply_wcn }} WCN</strong></div>
+  <div>Circulating: <strong>{{ circulating_wcn }} WCN</strong></div>
+</div>
+
+<table class="table">
+  <thead>
+    <tr><th>Height</th><th>Hash</th><th>Time</th><th>Tx Count</th><th>Reward (WCN)</th></tr>
+  </thead>
+  <tbody>
+    {% for b in blocks %}
+    <tr>
+      <td><a href="{{ url_for('block_view', index=b.index) }}">{{ b.index }}</a></td>
+      <td class="mono"><a href="{{ url_for('block_view', index=b.index) }}">{{ b.hash[:16] }}…</a></td>
+      <td>{{ b.time }}</td>
+      <td>{{ b.tx_count }}</td>
+      <td class="mono">{{ b.reward_wcn }} WCN</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

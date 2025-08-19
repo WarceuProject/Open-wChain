@@ -1,9 +1,13 @@
 import os, requests, hashlib, json, time
 from .block import create_block
-from chain.tx_pool import load_tx_pool, save_tx_pool
-from wallet.wallet import verify_signature, load_wallets, save_wallets
-from node.peers import load_peers
+#from chain.tx_pool import load_tx_pool, save_tx_pool
+#from wallet.wallet import verify_signature, load_wallets, save_wallets
+from lib.wallet.wallet import verify_signature, load_wallets, save_wallets
+#from node.peers import load_peers
+from lib.node.peers import load_peers
 from app.config import DATA_DIR
+from .tx_pool import load_tx_pool, save_tx_pool
+
 
 CHAIN_FILE = os.path.join(DATA_DIR, "blocks.json")
 MAX_SUPPLY = 20_000_000 * 100_000_000  # Max Supply dalam satoshis

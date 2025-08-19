@@ -1,0 +1,15 @@
+{% extends "layout.html" %}
+{% block content %}
+<h1>Transaction {{ tx.txid[:12] }}… {% if mempool %}<small>(mempool)</small>{% endif %}</h1>
+
+<div class="card">
+  <dl>
+    <dt>From</dt><dd>{{ tx.from_display }}</dd>
+    <dt>To</dt><dd>{{ tx.to_display }}</dd>
+    <dt>Amount</dt><dd class="mono">{{ tx.value_wcn }} WCN</dd>
+    <dt>Fee</dt><dd class="mono">{{ tx.fee_wcn if tx.fee_wcn else '-' }}</dd>
+    <dt>Timestamp</dt><dd>{{ format_time(tx.timestamp) if tx.timestamp else '-' }}</dd>
+    <dt>Signature</dt><dd class="mono small">{{ tx.get('signature', '-') }}</dd>
+  </dl>
+</div>
+{% endblock %}
