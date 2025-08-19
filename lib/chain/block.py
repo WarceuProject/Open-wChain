@@ -1,4 +1,4 @@
-# openwchain/chain/block.py
+# lib/chain/block.py
 import hashlib
 import json
 import time

@@ -1,4 +1,4 @@
-# core/chain/tx_pool.py
+# lib/chain/tx_pool.py
 import json
 import os
 from app.config import DATA_DIR

@@ -1,13 +1,13 @@
 import os, sys, json, time, requests
 import cmd
 
-#sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'app)))
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 from app.config import DATA_DIR
 from lib.wallet.wallet import generate_wallet, load_wallets, save_wallets, sign_transaction
 
 RPC = 'http://localhost:8000/rpc'
 UNIT = 100_000_000  # 1 WCN = 100_000_000 unit
+MIN_TX_FEE = 1000   # minimal fee per transaksi dalam unit
 
 class WalletCLI(cmd.Cmd):
     intro = "[openwchain-wallet] Type help or ? to list commands.\n"
@@ -27,6 +27,7 @@ class WalletCLI(cmd.Cmd):
     def save(self):
         save_wallets(self.wallets)
 
+    # ----------------- Wallet management -----------------
     def do_create(self, alias):
         "Create a new wallet: create <alias>"
         if not alias:
@@ -71,6 +72,7 @@ class WalletCLI(cmd.Cmd):
                 return
         print("[!] Wallet not found.")
 
+    # ----------------- Balance -----------------
     def do_balance(self, address):
         "Check balance: balance <address>"
         if not address:
@@ -94,6 +96,7 @@ class WalletCLI(cmd.Cmd):
         self.save()
         print("[✓] Wallets updated.")
 
+    # ----------------- Send transaction -----------------
     def do_send(self, arg):
         "Send transaction: send <to_address> <amount>"
         if not self.default_wallet:
@@ -142,19 +145,38 @@ class WalletCLI(cmd.Cmd):
             "params": [full_tx]
         })
 
-        print(res.json())
+        result = res.json()
+        if 'result' in result:
+            fee = result.get('fee', 0) / UNIT
+            print(f"[✓] Transaction added. Fee applied: {fee:.8f} WCN")
+        else:
+            print(result)
 
+
+    # ----------------- Mining -----------------
     def do_mine(self, arg):
         "Mine a block using default wallet"
         if not self.default_wallet:
             print("[!] No default wallet selected.")
             return
-        res = requests.post(RPC, json={
-            "method": "wcn_mineBlock",
-            "params": [self.default_wallet['address']]
-        })
-        print("[⛏️] Mined block:", res.json().get("result", {}).get("hash"))
+        try:
+            res = requests.post(RPC, json={
+                "method": "wcn_mineBlock",
+                "params": [self.default_wallet['address']]
+            }, timeout=10)
+            result_json = res.json() if res.text else {}
+            mined_hash = result_json.get("result", {}).get("hash") if result_json else None
+            if mined_hash:
+                print("[⛏️] Mined block:", mined_hash)
+            else:
+                print("[!] Mining failed or empty response:", res.text)
+        except requests.exceptions.RequestException as e:
+            print(f"[!] RPC request failed: {e}")
+        except ValueError as e:
+            print(f"[!] Failed to decode JSON: {res.text}")
+    
 
+    # ----------------- Exit -----------------
     def do_exit(self, arg):
         "Exit"
         print("Goodbye!")
@@ -163,6 +185,6 @@ class WalletCLI(cmd.Cmd):
     def emptyline(self):
         pass
 
+
 if __name__ == '__main__':
     WalletCLI().cmdloop()
-#

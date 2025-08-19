@@ -1,4 +1,4 @@
-# core/wallet/wallet.py
+# lib/wallet/wallet.py
 import ecdsa
 import os
 import hashlib
