@@ -125,64 +125,78 @@ def validate_chain_structure(chain):
         log.exception(f"[VALIDATE] Exception validating chain: {e}")
         return False
 
-# ======================= Auto-sync logic =======================
-def auto_sync_from_peers():
-    """
-    Query all peers, find the longest *valid* chain, replace local chain if longer.
-    """
-    peers = load_peers()
-    if not peers:
-        log.debug("[SYNC] No peers to sync from.")
+# ======================= Auto-sync logic (Optimized) =======================
+last_known_height = 0
+last_sync_time = 0
+MIN_SYNC_INTERVAL = 300  # minimal sync tiap 5 menit sekali, walau nggak ada blok baru
+
+def get_local_height():
+    """Return current local chain height."""
+    return len(load_chain())
+
+def get_peer_height(peer_url):
+    """Query peer block height via RPC."""
+    try:
+        res = requests.post(f"{peer_url}/rpc", json={"method": "wcn_blockNumber"}, timeout=RPC_TIMEOUT)
+        if res.status_code == 200:
+            result = res.json().get("result")
+            if isinstance(result, str) and result.startswith("0x"):
+                return int(result, 16)
+            return int(result)
+    except Exception:
+        return None
+    return None
+
+def auto_sync_from_peers_if_needed():
+    """Sync hanya jika peer punya chain lebih panjang dari lokal."""
+    global last_known_height, last_sync_time
+    now = time.time()
+
+    local_height = get_local_height()
+    if now - last_sync_time < MIN_SYNC_INTERVAL:
+        # terlalu cepat untuk sync lagi
         return False
 
-    local_chain = load_chain()
-    best_chain = local_chain
-    best_len = len(local_chain)
-    replaced = False
+    peers = load_peers()
+    if not peers:
+        log.debug("[SYNC] No peers to check height.")
+        return False
 
+    should_sync = False
     for peer_entry in peers:
         peer_url = node_url_from_addr(peer_entry)
         if not peer_url:
             continue
-        try:
-            res = requests.get(f"{peer_url}/fullchain", timeout=RPC_TIMEOUT)
-            if res.status_code != 200:
-                log.debug(f"[SYNC] Peer {peer_url} returned status {res.status_code}")
-                continue
-            data = res.json()
-            new_chain = data.get('chain', [])
-            new_len = int(data.get('length', len(new_chain)))
-            if new_len <= best_len:
-                continue
-            # validate new chain
-            if validate_chain_structure(new_chain):
-                best_chain = new_chain
-                best_len = new_len
-                log.info(f"[SYNC] Found longer valid chain from {peer_url} length={new_len}")
-            else:
-                log.warning(f"[SYNC] Peer {peer_url} chain failed validation")
-        except Exception as e:
-            log.debug(f"[SYNC] Failed fetching from {peer_url}: {e}")
+        peer_height = get_peer_height(peer_url)
+        if peer_height and peer_height > local_height:
+            log.info(f"[SYNC] Peer {peer_url} has newer height {peer_height} > {local_height}")
+            should_sync = True
+            break
 
-    if best_len > len(local_chain):
-        save_chain(best_chain)
-        update_wallets_from_chain(best_chain)
-        log.info(f"[SYNC] Replaced local chain with chain length {best_len}")
-        replaced = True
+    if should_sync:
+        replaced = auto_sync_from_peers()
+        if replaced:
+            last_known_height = get_local_height()
+            last_sync_time = time.time()
+        return replaced
+    else:
+        log.debug("[SYNC] No newer blocks found in peers.")
+        last_sync_time = now
+    return False
 
-    return replaced
-
-def periodic_sync():
+def background_sync_worker():
+    """Worker ringan: cek height peer tiap SYNC_INTERVAL detik."""
     while True:
         try:
-            auto_sync_from_peers()
+            auto_sync_from_peers_if_needed()
         except Exception:
-            log.exception("[SYNC] periodic_sync exception")
+            log.exception("[SYNC] background_sync_worker exception")
         time.sleep(SYNC_INTERVAL)
 
 def start_background_sync():
-    t = threading.Thread(target=periodic_sync, daemon=True)
+    t = threading.Thread(target=background_sync_worker, daemon=True)
     t.start()
+
 
 # ======================= Bootstrap peers at startup =======================
 def bootstrap_peers():
