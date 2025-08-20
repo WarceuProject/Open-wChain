@@ -57,13 +57,13 @@ def mine_block(miner_addresses, _, reward_value=None):
     total_supply = get_total_supply(chain)
     tx_fee_total = sum([tx.get('fee', 0) for tx in tx_pool])
 
+    HALVING_INTERVAL = 210_000  # Halving block
+    INITIAL_REWARD = 50 * 100_000_000  # 50 WCN
+
     if reward_value is None:
         if total_supply < MAX_SUPPLY:
-            if len(chain) == 0 and len(tx_pool) == 0:
-                reward_value = min(MAX_SUPPLY - total_supply, int(0.5 * MAX_SUPPLY))
-            else:
-                reward_from_supply = int(0.1 * MAX_SUPPLY)
-                reward_value = min(MAX_SUPPLY - total_supply, reward_from_supply) + tx_fee_total
+            current_reward = INITIAL_REWARD // (2 ** (len(chain) // HALVING_INTERVAL))
+            reward_value = min(MAX_SUPPLY - total_supply, current_reward) + tx_fee_total
         else:
             reward_value = tx_fee_total
 
