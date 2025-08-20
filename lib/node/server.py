@@ -4,9 +4,10 @@ import sys
 import requests
 import logging
 import time
+import json
 import threading
 from flask import Flask, request, jsonify
-
+from app.config import FEE_RATE
 # make project root importable (so imports like lib.chain.* work)
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 if ROOT not in sys.path:
@@ -247,6 +248,10 @@ def bootstrap_peers():
                 log.debug(f"[BOOT] Failed fetching chain from {peer_url}: {e}")
         except Exception as e:
             log.debug(f"[BOOT] unexpected error with peer {peer_url}: {e}")
+# kalkulasikan tx fee
+def calculate_fee(tx):
+    tx_size = len(json.dumps(tx).encode("utf-8"))  # ukuran transaksi dalam byte
+    return tx_size * FEE_RATE
 
 # ======================= Flask endpoints =======================
 @app.route("/")
@@ -297,35 +302,37 @@ def rpc():
         tx = params[0] if params else None
         if not tx:
             return jsonify({'error': 'No transaction provided'}), 400
+    
         public_key = tx.get("publicKey")
         sender = tx.get("from")
         to = (tx.get("data") or {}).get("to")
         value = (tx.get("data") or {}).get("value")
+    
         log.info(f"[TX] Received tx from {sender} -> {to} value={value}")
-
-        MIN_TRANSFER = 100_000
-        MIN_FEE = 50_000
+    
+        MIN_TRANSFER = 100_000  # 0.001 WCN misalnya
         if value is None:
             return jsonify({'error': 'Invalid tx data'}), 400
         if value < MIN_TRANSFER:
             return jsonify({'error': f'Transfer too small. Minimum is {MIN_TRANSFER}'}), 400
-
-        fee = tx.get('fee', MIN_FEE)
+    
+        # Hitung fee otomatis
+        fee = calculate_fee(tx)
         tx['fee'] = fee
-
+    
         if not public_key or not verify_signature(tx['data'], tx['signature'], public_key):
             log.warning("[TX] Invalid signature")
             return jsonify({'error': 'Invalid signature'}), 400
-
+    
         balance = calculate_balance(sender)
         if balance < (value + fee):
             log.warning(f"[TX] Insufficient balance for {sender}: have {balance}, need {value+fee}")
             return jsonify({'error': 'Insufficient balance including fee', 'available': balance}), 400
-
+    
         add_transaction(tx)
         log.info(f"[TX] Transaction accepted {sender} -> {to} fee={fee}")
         return jsonify({'result': 'Transaction added to pool', 'fee': fee})
-
+    
     else:
         return jsonify({'error': 'Method not found'}), 404
 

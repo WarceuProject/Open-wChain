@@ -116,17 +116,23 @@ def update_wallets_from_chain(chain):
     wallets = load_wallets()
     address_map = {w['address']: w for w in wallets}
 
+    # Reset Balance all wallet on chain
     for w in wallets:
         w['balance'] = 0
 
+    # kalkulasikan saldo dari awal block index 0
     for block in chain:
         for tx in block['transactions']:
             sender_addr = tx.get('from')
             to_addr = tx['data']['to'] if 'data' in tx else tx.get('to')
             value = tx['data']['value'] if 'data' in tx else tx.get('value')
+            fee = tx.get('fee', 0)  # get tx fee
 
+            # Kurangi saldo pengirim (termasuk fee)
             if sender_addr != "COINBASE" and sender_addr in address_map:
-                address_map[sender_addr]['balance'] -= value
+                address_map[sender_addr]['balance'] -= (value + fee)
+
+            # Tambahkan saldo ke penerima
             if to_addr in address_map:
                 address_map[to_addr]['balance'] += value
             else:
@@ -139,8 +145,23 @@ def update_wallets_from_chain(chain):
                 }
                 wallets.append(address_map[to_addr])
 
-    save_wallets(wallets)
+            # Catat fee untuk miner (COINBASE Reward)
+            if sender_addr != "COINBASE" and fee > 0:
+                miner_addr = block['transactions'][0]['to'] if block['transactions'] and block['transactions'][0]['from'] == "COINBASE" else None
+                if miner_addr:
+                    if miner_addr in address_map:
+                        address_map[miner_addr]['balance'] += fee
+                    else:
+                        address_map[miner_addr] = {
+                            "address": miner_addr,
+                            "privateKey": "",
+                            "publicKey": "",
+                            "balance": fee,
+                            "isLocal": False
+                        }
+                        wallets.append(address_map[miner_addr])
 
+    save_wallets(wallets)
 # ============================
 def hash_block(block):
     block_data = {
@@ -152,7 +173,7 @@ def hash_block(block):
     }
     block_str = json.dumps(block_data, sort_keys=True)
     return hashlib.sha256(block_str.encode()).hexdigest()
-
+#================ Validator Block
 def is_block_valid(block, previous_block, wallets):
     if block["hash"] != hash_block(block):
         print("[!] Invalid block hash.")
@@ -165,25 +186,53 @@ def is_block_valid(block, previous_block, wallets):
         return False
 
     address_map = {w["address"]: dict(w) for w in wallets}
+
+    # Cari alamat miner dari transaksi coinbase pertama
+    miner_addr = None
+    if block['transactions'] and block['transactions'][0]['from'] == "COINBASE":
+        miner_addr = block['transactions'][0]['to']
+
     for tx in block["transactions"]:
         if tx["from"] == "COINBASE":
             continue
         if not verify_signature(tx['data'], tx['signature'], tx['publicKey']):
             print("[!] Invalid signature.")
             return False
+
+        value = tx['data']['value']
+        fee = tx.get('fee', 0)
+        total_cost = value + fee
+
         sender = address_map.get(tx['from'])
-        if not sender or sender['balance'] < tx['data']['value']:
+        if not sender or sender['balance'] < total_cost:
             print("[!] Insufficient balance.")
             return False
-        sender["balance"] -= tx['data']['value']
+
+        # Potong saldo pengirim
+        sender["balance"] -= total_cost
+
+        # Tambah saldo penerima
         receiver = address_map.get(tx['data']['to'])
         if receiver:
-            receiver['balance'] += tx['data']['value']
+            receiver['balance'] += value
         else:
             address_map[tx['data']['to']] = {
                 "address": tx['data']['to'],
-                "balance": tx['data']['value'],
+                "balance": value,
                 "privateKey": "",
                 "publicKey": ""
             }
+
+        # Tambah fee ke miner jika ada
+        if fee > 0 and miner_addr:
+            if miner_addr in address_map:
+                address_map[miner_addr]['balance'] += fee
+            else:
+                address_map[miner_addr] = {
+                    "address": miner_addr,
+                    "balance": fee,
+                    "privateKey": "",
+                    "publicKey": ""
+                }
+
     return True
