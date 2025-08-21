@@ -1,24 +1,19 @@
-{% extends "layout.html" %}
-{% block content %}
-<h1>Mempool (Pending Transactions)</h1>
+{% extends "base.html" %}
+{% block title %}Mempool{% endblock %}
 
-{% if txs %}
-<table class="table">
-  <thead><tr><th>TXID</th><th>From</th><th>To</th><th>Amount (WCN)</th><th>Fee</th><th>Time</th></tr></thead>
-  <tbody>
-    {% for tx in txs %}
-    <tr>
-      <td><a href="{{ url_for('tx_view', txid=tx.txid) }}" class="mono">{{ tx.txid[:12] }}…</a></td>
-      <td>{{ tx.from_display }}</td>
-      <td>{{ tx.to_display }}</td>
-      <td class="mono">{{ tx.value_wcn }}</td>
-      <td class="mono">{{ tx.fee_wcn if tx.fee_wcn else '-' }}</td>
-      <td>{{ format_time(tx.timestamp) }}</td>
-    </tr>
-    {% endfor %}
-  </tbody>
+{% block content %}
+<h2>Mempool (Pending Transactions)</h2>
+<table border="1">
+<tr><th>TXID</th><th>From</th><th>To</th><th>Amount(WCN)</th><th>Fee(WCN)</th><th>Time</th></tr>
+{% for tx in txs %}
+<tr>
+    <td>{{ tx.txid[:8] }}...</td>
+    <td>{{ tx.from_display }}</td>
+    <td>{{ tx.to_display }}</td>
+    <td>{{ tx.value_wcn }}</td>
+    <td>{{ tx.fee_wcn }}</td>
+    <td>{{ format_time(tx.timestamp) }}</td>
+</tr>
+{% endfor %}
 </table>
-{% else %}
-<p>No pending transactions.</p>
-{% endif %}
 {% endblock %}

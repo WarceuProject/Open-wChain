@@ -1,29 +1,42 @@
-{% extends "layout.html" %}
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+
 {% block content %}
-<h1>Latest Blocks</h1>
+<!-- Search Bar -->
+<form action="{{ url_for('search') }}" method="get" style="margin-bottom:20px;">
+    <input type="text" name="q" placeholder="Search block / tx / address" style="width:300px; padding:5px;">
+    <button type="submit">Search</button>
+</form>
 
-<div class="row meta">
-  <div>Blocks: <strong>{{ total_blocks }}</strong></div>
-  <div>Txs: <strong>{{ total_txs }}</strong></div>
-  <div>Mempool: <strong>{{ mempool_size }}</strong></div>
-  <div>Max Supply: <strong>{{ max_supply_wcn }} WCN</strong></div>
-  <div>Circulating: <strong>{{ circulating_wcn }} WCN</strong></div>
-</div>
+<h2>Dashboard</h2>
+<p>Total Blocks: {{ total_blocks }} | Total TX: {{ total_txs }} | Circulating: {{ circulating_wcn }} | Max Supply: {{ max_supply_wcn }}</p>
 
-<table class="table">
-  <thead>
-    <tr><th>Height</th><th>Hash</th><th>Time</th><th>Tx Count</th><th>Reward (WCN)</th></tr>
-  </thead>
-  <tbody>
-    {% for b in blocks %}
-    <tr>
-      <td><a href="{{ url_for('block_view', index=b.index) }}">{{ b.index }}</a></td>
-      <td class="mono"><a href="{{ url_for('block_view', index=b.index) }}">{{ b.hash[:16] }}…</a></td>
-      <td>{{ b.time }}</td>
-      <td>{{ b.tx_count }}</td>
-      <td class="mono">{{ b.reward_wcn }} WCN</td>
-    </tr>
-    {% endfor %}
-  </tbody>
+<h3>Last Blocks</h3>
+<table>
+<tr><th>Index</th><th>Hash</th><th>Time</th><th>TX Count</th><th>Reward(WCN)</th></tr>
+{% for b in blocks %}
+<tr>
+    <td><a href="{{ url_for('block_view', index=b.index) }}">{{ b.index }}</a></td>
+    <td>{{ b.hash[:12] }}...</td>
+    <td>{{ b.time }}</td>
+    <td>{{ b.tx_count }}</td>
+    <td>{{ b.reward_wcn }}</td>
+</tr>
+{% endfor %}
+</table>
+
+<h3>Last Transactions</h3>
+<table>
+<tr><th>TXID</th><th>Time</th><th>From</th><th>To</th><th>Amount(WCN)</th><th>Fee(WCN)</th></tr>
+{% for tx in last_txs %}
+<tr>
+    <td><a href="{{ url_for('tx_view', txid=tx.txid) }}">{{ tx.txid[:10] }}...</a></td>
+    <td>{{ tx.time }}</td>
+    <td><a href="{{ url_for('address_view', address=tx.from) }}">{{ tx.from }}</a></td>
+    <td><a href="{{ url_for('address_view', address=tx.to) }}">{{ tx.to }}</a></td>
+    <td>{{ tx.amount_wcn }}</td>
+    <td>{{ tx.fee_wcn }}</td>
+</tr>
+{% endfor %}
 </table>
 {% endblock %}

@@ -1,5 +1,7 @@
-{% extends "layout.html" %}
+{% extends "base.html" %}
+{% block title %}Not Found{% endblock %}
+
 {% block content %}
-<h1>Not found</h1>
-<p>Query not found or invalid: {{ query }}</p>
+<h2>Not Found</h2>
+{% if query %}<p>Query '{{ query }}' not found.</p>{% else %}<p>Page not found.</p>{% endif %}
 {% endblock %}

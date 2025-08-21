@@ -1,31 +1,35 @@
-{% extends "layout.html" %}
-{% block content %}
-<h1>Address {{ address }}</h1>
-<div class="card">
-  <dl>
-    <dt>Balance</dt><dd class="mono">{{ balance }} WCN</dd>
-    <dt>Transactions (including mempool)</dt><dd>{{ txs|length }}</dd>
-  </dl>
-</div>
+{% extends "base.html" %}
+{% block title %}Wallet {{ address }}{% endblock %}
 
-<h2>Activity</h2>
-{% if txs %}
-<table class="table">
-  <thead><tr><th>TXID</th><th>Block</th><th>From</th><th>To</th><th>Amount</th><th>Fee</th></tr></thead>
-  <tbody>
-    {% for tx in txs %}
-    <tr>
-      <td><a href="{{ url_for('tx_view', txid=tx.txid) }}" class="mono">{{ tx.txid[:12] }}…</a></td>
-      <td>{% if tx.block_index %}<a href="{{ url_for('block_view', index=tx.block_index) }}">{{ tx.block_index }}</a>{% else %}-{% endif %}</td>
-      <td>{{ tx.get('from') }}</td>
-      <td>{{ tx.get('to_display') }}</td>
-      <td class="mono">{{ tx.value_wcn }}</td>
-      <td class="mono">{{ tx.fee_wcn if tx.fee_wcn else '-' }}</td>
-    </tr>
-    {% endfor %}
-  </tbody>
+{% block content %}
+<h2>Wallet {{ address }}</h2>
+<p>Balance: {{ balance }} WCN</p>
+
+<h3>Transactions</h3>
+<table>
+<tr>
+    <th>TXID</th>
+    <th>From</th>
+    <th>To</th>
+    <th>Amount (WCN)</th>
+    <th>Fee (WCN)</th>
+    <th>Block</th>
+</tr>
+{% for tx in txs %}
+<tr>
+    <td><a href="{{ url_for('tx_view', txid=tx.txid) }}">{{ tx.txid[:8] }}...</a></td>
+    <td><a href="{{ url_for('address_view', address=tx.from_display) }}">{{ tx.from_display }}</a></td>
+    <td><a href="{{ url_for('address_view', address=tx.to_display) }}">{{ tx.to_display }}</a></td>
+    <td>{{ tx.value_wcn }}</td>
+    <td>{{ tx.fee_wcn }}</td>
+    <td>
+        {% if tx.block_index is not none %}
+            <a href="{{ url_for('block_view', index=tx.block_index) }}">{{ tx.block_index }}</a>
+        {% else %}
+            Pending
+        {% endif %}
+    </td>
+</tr>
+{% endfor %}
 </table>
-{% else %}
-<p>No activity for this address.</p>
-{% endif %}
 {% endblock %}

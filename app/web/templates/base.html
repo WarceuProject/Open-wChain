@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}WCN Explorer{% endblock %}</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
+        header { background: #333; color: white; padding: 10px; }
+        nav a { color: white; margin-right: 15px; text-decoration: none; }
+        nav a:hover { text-decoration: underline; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #ccc; padding: 5px; text-align: left; }
+        th { background: #eee; }
+        tr:nth-child(even) { background: #f9f9f9; }
+        .container { padding: 20px; }
+    </style>
+</head>
+<body>
+<header>
+    <nav>
+        <a href="{{ url_for('index') }}">Blocks</a>
+        <a href="{{ url_for('mempool_view') }}">Mempool</a>
+        <a href="{{ url_for('supply_view') }}">Supply</a>
+    </nav>
+</header>
+<div class="container">
+    {% block content %}{% endblock %}
+</div>
+</body>
+</html>
