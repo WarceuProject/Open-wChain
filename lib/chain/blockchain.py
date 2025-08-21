@@ -1,16 +1,19 @@
-import os, requests, hashlib, json, time
-from .block import create_block
-#from chain.tx_pool import load_tx_pool, save_tx_pool
-#from wallet.wallet import verify_signature, load_wallets, save_wallets
+# lib/chain/blockchain.py
+import os, requests, hashlib, json, time, threading
+from .block import create_block, hash_block
+from .tx_pool import load_tx_pool, save_tx_pool, add_transaction
 from lib.wallet.wallet import verify_signature, load_wallets, save_wallets
-#from node.peers import load_peers
 from lib.node.peers import load_peers
+from lib.consensus.difficulty import adjust_difficulty
+from lib.consensus.config import (
+    MAX_SUPPLY,
+    get_block_reward,
+    BLOCK_TIME,
+    DIFFICULTY_ADJUSTMENT_INTERVAL
+)
 from app.config import DATA_DIR
-from .tx_pool import load_tx_pool, save_tx_pool
-
 
 CHAIN_FILE = os.path.join(DATA_DIR, "blocks.json")
-MAX_SUPPLY = 20_000_000 * 100_000_000  # Max Supply dalam satoshis
 
 def load_chain():
     if not os.path.exists(CHAIN_FILE):
@@ -30,12 +33,139 @@ def get_total_supply(chain):
             total += tx.get('value', 0)
     return total
 
-# ============================
+# =======================
+def update_wallets_from_chain(chain):
+    wallets = load_wallets()
+    address_map = {w['address']: w for w in wallets}
+
+    # reset all balances
+    for w in wallets:
+        w['balance'] = 0
+
+    for block in chain:
+        # coinbase first
+        miner_addr = None
+        if block['transactions'] and block['transactions'][0]['from'] == "COINBASE":
+            miner_addr = block['transactions'][0]['to']
+
+        for tx in block['transactions']:
+            sender_addr = tx.get('from')
+            to_addr = tx.get('to') if 'to' in tx else tx.get('data', {}).get('to')
+            value = tx.get('value') if 'value' in tx else tx.get('data', {}).get('value', 0)
+            fee = tx.get('fee', 0)
+
+            # sender
+            if sender_addr != "COINBASE" and sender_addr in address_map:
+                address_map[sender_addr]['balance'] -= (value + fee)
+
+            # receiver
+            if to_addr in address_map:
+                address_map[to_addr]['balance'] += value
+            else:
+                address_map[to_addr] = {
+                    "address": to_addr,
+                    "privateKey": "",
+                    "publicKey": "",
+                    "balance": value,
+                    "isLocal": False
+                }
+                wallets.append(address_map[to_addr])
+
+            # miner fee
+            if fee > 0 and miner_addr:
+                if miner_addr in address_map:
+                    address_map[miner_addr]['balance'] += fee
+                else:
+                    address_map[miner_addr] = {
+                        "address": miner_addr,
+                        "privateKey": "",
+                        "publicKey": "",
+                        "balance": fee,
+                        "isLocal": False
+                    }
+                    wallets.append(address_map[miner_addr])
+
+    save_wallets(wallets)
+
+# =======================
+def is_block_valid(block, previous_block, wallets):
+    if block["hash"] != hash_block(block):
+        return False
+    if not block["hash"].startswith("0000"):
+        return False
+    if block["previous_hash"] != previous_block["hash"]:
+        return False
+
+    address_map = {w["address"]: dict(w) for w in wallets}
+    miner_addr = None
+    if block['transactions'] and block['transactions'][0]['from'] == "COINBASE":
+        miner_addr = block['transactions'][0]['to']
+
+    for tx in block["transactions"]:
+        if tx["from"] == "COINBASE":
+            continue
+        if not verify_signature(tx['data'], tx['signature'], tx['publicKey']):
+            return False
+
+        value = tx['data']['value']
+        fee = tx.get('fee', 0)
+        total_cost = value + fee
+
+        sender = address_map.get(tx['from'])
+        if not sender or sender['balance'] < total_cost:
+            return False
+        sender["balance"] -= total_cost
+
+        receiver = address_map.get(tx['data']['to'])
+        if receiver:
+            receiver['balance'] += value
+        else:
+            address_map[tx['data']['to']] = {   
+                "address": tx['data']['to'],
+                "balance": value,
+                "privateKey": "",
+                "publicKey": ""
+            }
+
+
+        if fee > 0 and miner_addr:
+            if miner_addr in address_map:
+                address_map[miner_addr]['balance'] += fee
+            else:
+                address_map[miner_addr] = {
+                    "address": miner_addr,
+                    "balance": fee,
+                    "privateKey": "",
+                    "publicKey": ""
+                }
+
+    return True
+
+# =======================
+def resolve_forks():
+    local_chain = load_chain()
+    peers = load_peers()
+    max_len = len(local_chain)
+    best_chain = local_chain
+
+    for p in peers:
+        try:
+            res = requests.get(f"{p}/fullchain", timeout=3)
+            if res.status_code == 200:
+                data = res.json()
+                peer_chain = data.get("chain", [])
+                if len(peer_chain) > max_len and validate_chain(peer_chain):
+                    max_len = len(peer_chain)
+                    best_chain = peer_chain
+        except:
+            continue
+
+    if best_chain != local_chain:
+        save_chain(best_chain)
+        update_wallets_from_chain(best_chain)
+
+# =======================
 def mine_block(miner_addresses, _, reward_value=None):
-    """
-    miner_addresses: list miner
-    reward_value: opsional, jika None → dihitung otomatis
-    """
     chain = load_chain()
     tx_pool = load_tx_pool()
     valid_txs = []
@@ -43,7 +173,6 @@ def mine_block(miner_addresses, _, reward_value=None):
     wallets = load_wallets()
     address_map = {w['address']: w for w in wallets}
 
-    # Validasi transaksi
     for tx in tx_pool:
         sender = address_map.get(tx['from'])
         if sender and verify_signature(tx['data'], tx['signature'], sender['publicKey']):
@@ -53,23 +182,17 @@ def mine_block(miner_addresses, _, reward_value=None):
             if receiver:
                 receiver['balance'] += tx['data']['value']
 
-    # Hitung reward otomatis jika None
-    total_supply = get_total_supply(chain)
+    total_supply = get_total_supply(chain) / 100_000_000
     tx_fee_total = sum([tx.get('fee', 0) for tx in tx_pool])
-
-    HALVING_INTERVAL = 210_000  # Halving block
-    INITIAL_REWARD = 50 * 100_000_000  # 50 WCN
 
     if reward_value is None:
         if total_supply < MAX_SUPPLY:
-            current_reward = INITIAL_REWARD // (2 ** (len(chain) // HALVING_INTERVAL))
-            reward_value = min(MAX_SUPPLY - total_supply, current_reward) + tx_fee_total
+            current_reward = get_block_reward(len(chain)) * 100_000_000
+            reward_value = min((MAX_SUPPLY * 100_000_000) - (total_supply * 100_000_000), current_reward) + tx_fee_total
         else:
             reward_value = tx_fee_total
 
-    # Pembagian reward per miner
     per_miner_reward = reward_value // len(miner_addresses) if miner_addresses else reward_value
-
     reward_txs = []
     for addr in miner_addresses:
         reward_txs.append({
@@ -89,150 +212,45 @@ def mine_block(miner_addresses, _, reward_value=None):
                 "isLocal": True
             })
 
-    # Buat block baru
-    block = create_block(
-        index=len(chain),
-        previous_hash=chain[-1]['hash'] if chain else '0'*64,
-        transactions=valid_txs + reward_txs
-    )
+    # ================= Mining with CPU-friendly loop & miner stats =================
+    difficulty = adjust_difficulty(chain)
+    nonce = 0
+    timestamp = int(time.time())
+    miner_stats = {addr: 0 for addr in miner_addresses}
+    batch_size = 1000
 
-    chain.append(block)
-    save_chain(chain)
-
-    # Broadcast ke peers
-    for peer in load_peers():
-        try:
-            requests.post(f'{peer}/sync', json=block, timeout=3)
-        except:
-            continue
-
-    save_wallets(wallets)
-    save_tx_pool([])
-
-    return block
-
-# ============================
-def update_wallets_from_chain(chain):
-    wallets = load_wallets()
-    address_map = {w['address']: w for w in wallets}
-
-    # Reset Balance all wallet on chain
-    for w in wallets:
-        w['balance'] = 0
-
-    # kalkulasikan saldo dari awal block index 0
-    for block in chain:
-        for tx in block['transactions']:
-            sender_addr = tx.get('from')
-            to_addr = tx['data']['to'] if 'data' in tx else tx.get('to')
-            value = tx['data']['value'] if 'data' in tx else tx.get('value')
-            fee = tx.get('fee', 0)  # get tx fee
-
-            # Kurangi saldo pengirim (termasuk fee)
-            if sender_addr != "COINBASE" and sender_addr in address_map:
-                address_map[sender_addr]['balance'] -= (value + fee)
-
-            # Tambahkan saldo ke penerima
-            if to_addr in address_map:
-                address_map[to_addr]['balance'] += value
-            else:
-                address_map[to_addr] = {
-                    "address": to_addr,
-                    "privateKey": "",
-                    "publicKey": "",
-                    "balance": value,
-                    "isLocal": False
-                }
-                wallets.append(address_map[to_addr])
-
-            # Catat fee untuk miner (COINBASE Reward)
-            if sender_addr != "COINBASE" and fee > 0:
-                miner_addr = block['transactions'][0]['to'] if block['transactions'] and block['transactions'][0]['from'] == "COINBASE" else None
-                if miner_addr:
-                    if miner_addr in address_map:
-                        address_map[miner_addr]['balance'] += fee
-                    else:
-                        address_map[miner_addr] = {
-                            "address": miner_addr,
-                            "privateKey": "",
-                            "publicKey": "",
-                            "balance": fee,
-                            "isLocal": False
-                        }
-                        wallets.append(address_map[miner_addr])
-
-    save_wallets(wallets)
-# ============================
-def hash_block(block):
-    block_data = {
-        "index": block["index"],
-        "previous_hash": block["previous_hash"],
-        "timestamp": block["timestamp"],
-        "transactions": block["transactions"],
-        "nonce": block["nonce"]
-    }
-    block_str = json.dumps(block_data, sort_keys=True)
-    return hashlib.sha256(block_str.encode()).hexdigest()
-#================ Validator Block
-def is_block_valid(block, previous_block, wallets):
-    if block["hash"] != hash_block(block):
-        print("[!] Invalid block hash.")
-        return False
-    if not block["hash"].startswith("0000"):
-        print("[!] Hash doesn't meet difficulty requirement.")
-        return False
-    if block["previous_hash"] != previous_block["hash"]:
-        print("[!] Previous hash mismatch.")
-        return False
-
-    address_map = {w["address"]: dict(w) for w in wallets}
-
-    # Cari alamat miner dari transaksi coinbase pertama
-    miner_addr = None
-    if block['transactions'] and block['transactions'][0]['from'] == "COINBASE":
-        miner_addr = block['transactions'][0]['to']
-
-    for tx in block["transactions"]:
-        if tx["from"] == "COINBASE":
-            continue
-        if not verify_signature(tx['data'], tx['signature'], tx['publicKey']):
-            print("[!] Invalid signature.")
-            return False
-
-        value = tx['data']['value']
-        fee = tx.get('fee', 0)
-        total_cost = value + fee
-
-        sender = address_map.get(tx['from'])
-        if not sender or sender['balance'] < total_cost:
-            print("[!] Insufficient balance.")
-            return False
-
-        # Potong saldo pengirim
-        sender["balance"] -= total_cost
-
-        # Tambah saldo penerima
-        receiver = address_map.get(tx['data']['to'])
-        if receiver:
-            receiver['balance'] += value
-        else:
-            address_map[tx['data']['to']] = {
-                "address": tx['data']['to'],
-                "balance": value,
-                "privateKey": "",
-                "publicKey": ""
+    while True:
+        for _ in range(batch_size):
+            block = {
+                'index': len(chain),
+                'previous_hash': chain[-1]['hash'] if chain else '0'*64,
+                'timestamp': timestamp,
+                'transactions': valid_txs + reward_txs,
+                'nonce': nonce
             }
+            h = hash_block(block)
+            nonce += 1
+            for addr in miner_addresses:
+                miner_stats[addr] += 1
 
-        # Tambah fee ke miner jika ada
-        if fee > 0 and miner_addr:
-            if miner_addr in address_map:
-                address_map[miner_addr]['balance'] += fee
-            else:
-                address_map[miner_addr] = {
-                    "address": miner_addr,
-                    "balance": fee,
-                    "privateKey": "",
-                    "publicKey": ""
-                }
+            if h.startswith('0' * difficulty):
+                block['hash'] = h
+                block['difficulty'] = difficulty
+                for addr, tries in miner_stats.items():
+                    print(f"[MINER_STAT] {addr} tried {tries} nonces")
+                chain.append(block)
+                save_chain(chain)
+                save_wallets(wallets)
+                save_tx_pool([])
+                return block
+        time.sleep(0.001)  # yield CPU
 
+# ======================= Helper validate chain =======================
+def validate_chain(chain):
+    wallets = load_wallets()
+    for i, block in enumerate(chain):
+        if i == 0:
+            continue
+        if not is_block_valid(block, chain[i-1], wallets):
+            return False
     return True
