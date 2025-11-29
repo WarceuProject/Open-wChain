@@ -15,12 +15,12 @@ Designed from the outset as a testing and learning tool, OwCN aims to be an **op
 ### Q1: Experimental (DEV) — Ongoing
 - **Implementation of basic blockchain features** *(checkpoint)*
 - Testing and validation of the JSON-RPC protocol
-- Modular architecture refinement
-- Documentation and use cases
+- Improvement of the modular architecture
+- **Documentation and usage examples** *(checkpoint)*
 - Community development and open contributions
 - Deployment and testing in an internal testnet environment
-- Security risk assessment and improvements based on feedback
-- Development of multi-language integration
+- Security risk evaluation and improvements based on feedback
+- Development of integrations across programming languages
 - Preparation of a final report and future development plan
 
 ### Q2: Beta (TESTNET) — Coming Soon
@@ -34,9 +34,9 @@ Designed from the outset as a testing and learning tool, OwCN aims to be an **op
 ### Q3: Mainnet (Experimental) — Coming Soon
 - Experimental mainnet launch
 - Optimization of consensus and network stability
-- Implementation of advanced security features
-- Performance monitoring and evaluation Network
-- Developing a long-term development plan
+- Implementation of advanced security features Continued
+- Network performance monitoring and evaluation
+- Long-term development planning
 
 ---
 
@@ -46,7 +46,7 @@ The development model is based on open collaboration, where anyone can:
 - Propose new features
 - Report bugs
 - Submit pull requests
-- Participate in architectural discussions
+- Participate in architecture discussions
 
 ---
 
@@ -78,6 +78,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND.
 See also: `KOMUNITAS_KOMUNITAS.md`
 
 ---
-Docs : ```docs/INITIAL_DEVELOPMENT.md```
+Docs : [Documentation](https://github.com/WarceuProject/Open-wChain/wiki/Docs)
 
 _"Experimentation is the root of innovation. OwCN is an open laboratory for blockchain ideas."_
