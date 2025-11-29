@@ -16,7 +16,7 @@ Dirancang sejak awal sebagai alat bantu uji coba dan pembelajaran, OwCN bertujua
 - **Implementasi fitur dasar blockchain** *(checkpoint)*
 - Pengujian dan validasi protokol JSON-RPC  
 - Penyempurnaan arsitektur modular  
-- Dokumentasi dan contoh penggunaan  
+- **Dokumentasi dan contoh penggunaan**  *(checkpoint)*
 - Pengembangan komunitas dan kontribusi terbuka  
 - Penyebaran dan pengujian di lingkungan tesnet internal  
 - Evaluasi risiko keamanan dan perbaikan berdasarkan umpan balik  
