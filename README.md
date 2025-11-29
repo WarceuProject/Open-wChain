@@ -77,6 +77,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND.
 See also: `KESPAKATAN_KOMUNITAS.md`
 
 ---
-Docs : ```docs/INITIAL_DEVELOPMENT.md```
+Docs : ```[docs/INITIAL_DEVELOPMENT.md](https://github.com/WarceuProject/Open-wChain/wiki/Docs)```
 
 _"Eksperimen adalah akar dari inovasi. OwCN adalah laboratorium terbuka bagi ide-ide blockchain."_
